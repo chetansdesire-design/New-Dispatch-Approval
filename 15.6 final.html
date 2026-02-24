@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urban Casa | Dispatch v15.0 Master</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-main: #f1f5f9; --sidebar-bg: #1e293b; --card-bg: #ffffff;
+            --accent-blue: #2563eb; --text-main: #0f172a; --text-dim: #64748b;
+            --danger: #dc2626; --success: #059669; --border-color: #e2e8f0;
+            --warning: #f59e0b;
+        }
+        
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; font-size: 11px; }
+        
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-main); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: var(--card-bg); padding: 40px; border-radius: 16px; text-align: center; border: 1px solid var(--border-color); width: 280px; }
+        .user-btn { width: 100%; padding: 12px; margin: 8px 0; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; color: white; text-transform: uppercase; }
+
+        .sidebar { width: 190px; background-color: var(--sidebar-bg); padding: 20px 15px; display: flex; flex-direction: column; color: white; }
+        .nav-item { padding: 10px 12px; border-radius: 8px; margin-bottom: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #cbd5e1; }
+        .nav-item.selected { background: var(--accent-blue); color: white; }
+        .count { background: rgba(0,0,0,0.2); padding: 2px 7px; border-radius: 10px; font-size: 9px; }
+        
+        @keyframes urgent-pulse { 0%, 100% { background: rgba(239, 68, 68, 0.2); color: #f87171; } 50% { background: var(--danger); color: white; } }
+        .blink-urgent { animation: urgent-pulse 1s infinite !important; }
+
+        .main-content { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; }
+        .entry-container { display: none; background: var(--card-bg); padding: 10px; border-radius: 10px; margin-bottom: 15px; border: 1px solid var(--border-color); flex-shrink: 0; }
+        .input-group { display: flex; gap: 6px; align-items: flex-end; flex-wrap: nowrap; width: 100%; }
+        .field { display: flex; flex-direction: column; gap: 3px; }
+        .field label { font-size: 8px; color: var(--text-dim); text-transform: uppercase; font-weight: 700; }
+        .field input, .field select { background: #f8fafc; border: 1px solid #e2e8f0; padding: 7px; border-radius: 5px; font-size: 10px; outline: none; width: 100%; box-sizing: border-box; }
+        
+        .add-btn { background: var(--accent-blue); color: white; border: none; border-radius: 5px; padding: 0 15px; height: 32px; font-weight: 700; cursor: pointer; font-size: 10px; }
+
+        table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); }
+        th { text-align: left; padding: 12px 10px; font-size: 9px; color: var(--text-dim); background: #f8fafc; border-bottom: 1px solid var(--border-color); text-transform: uppercase; }
+        td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        
+        .pay-pill { padding: 4px 8px; border-radius: 4px; font-size: 9px; font-weight: 800; text-align: center; cursor: pointer; display: inline-block; min-width: 65px; border: 1px solid transparent; }
+        .pay-yes { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+        .pay-no { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+        .pay-done { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+        .pay-locked { opacity: 0.5; cursor: not-allowed; }
+
+        .status-pill { padding: 5px 0; border-radius: 5px; font-size: 9px; font-weight: 700; display: inline-block; width: 75px; text-align: center; cursor: pointer; text-transform: uppercase; border: 1px solid transparent; }
+        .status-new { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+        .status-pending { background: #e0f2fe; color: #075985; border-color: #bae6fd; }
+        .status-delivered { background: #f3e8ff; color: #6b21a8; border-color: #e9d5ff; }
+        .status-locked { cursor: not-allowed; opacity: 0.7; }
+
+        .stat-box { border-radius: 8px; padding: 10px; margin-bottom: 8px; text-align: center; background: rgba(255,255,255,0.05); border: 1px solid transparent; }
+        .stat-count { font-size: 18px; font-weight: 800; }
+        
+        .date-input { border:none; font-size:10px; background:transparent; font-weight:700; cursor:pointer; width:90px; }
+        .date-overdue { color: var(--danger); }
+        .date-today { color: var(--warning); }
+        .date-upcoming { color: var(--accent-blue); }
+        .date-finished { color: var(--success); }
+    </style>
+</head>
+<body>
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2 style="color:var(--accent-blue);">URBAN CASA</h2>
+            <button class="user-btn" style="background:var(--accent-blue);" onclick="login('Admin')">ADMIN</button>
+            <button class="user-btn" style="background:#7c3aed;" onclick="login('Sagar (Cashier)')">SAGAR</button>
+            <button class="user-btn" style="background:#059669;" onclick="login('Suman (Supervisor)')">SUMAN</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div style="font-weight:900; font-size:1.1rem; margin-bottom:20px;">URBAN CASA</div>
+        <div id="active-user-tag" style="font-size:9px; background:rgba(255,255,255,0.1); padding:8px; border-radius:6px; margin-bottom:20px; text-align:center;">---</div>
+        
+        <div class="nav-item selected" onclick="setFilter('all', this)">All Shipments <span class="count" id="count-total">0</span></div>
+        <div id="qc-nav" class="nav-item" onclick="setFilter('NEW', this)">QC Pending <span class="count" id="count-qc">0</span></div>
+        <div id="unapproved-nav" class="nav-item" onclick="setFilter('unapproved', this)">UnApproved <span class="count" id="count-unapproved">0</span></div>
+        <div class="nav-item" onclick="setFilter('today', this)">Today <span class="count" id="count-today">0</span></div>
+        <div class="nav-item" onclick="setFilter('PENDING', this)">Pending <span class="count" id="count-pending">0</span></div>
+        <div class="nav-item" onclick="setFilter('DELIVERED', this)">Delivered <span class="count" id="count-delivered">0</span></div>
+        
+        <div style="margin-top: auto; padding-top: 15px;">
+            <div id="total-pending-box" class="stat-box">
+                <label style="font-size:8px; display:block; margin-bottom:2px;">PAYMENT PENDING</label>
+                <div class="stat-count" id="sidebar-amt-pending">₹0</div>
+            </div>
+            <div id="dc-pending-box" class="stat-box" onclick="setFilter('dc_pending', this)" style="display:none; cursor:pointer;"><label style="font-size:8px;">DC PENDING</label><div class="stat-count" id="count-dc-pending">0</div></div>
+            <div class="stat-box"><label style="font-size:8px; color:#fbbf24">TOTAL PENDING</label><div class="stat-count" id="count-pending-total" style="color:#fbbf24">0</div></div>
+            <div class="stat-box"><label style="font-size:8px; color:#10b981">MONTH TOTAL</label><div class="stat-count" id="count-month-total" style="color:#10b981">0</div></div>
+            <button class="user-btn" style="background:transparent; border:1px solid rgba(255,255,255,0.2); font-size:9px;" onclick="location.reload()">LOGOUT</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="entry-container" id="entry-bar">
+            <div class="input-group">
+                <div class="field" style="flex: 2;"><label>Customer Name</label><input type="text" id="custName"></div>
+                <div class="field" style="flex: 1.2;"><label>Mobile</label><input type="text" id="custPhone"></div>
+                <div class="field" style="flex: 0.8;"><label>Bill No</label><input type="text" id="billNo"></div>
+                <div class="field" style="flex: 0.5;"><label>Qty</label><input type="text" id="qty"></div>
+                <div class="field" style="flex: 1;"><label>Exec</label><input type="text" id="execName"></div>
+                <div class="field" style="flex: 1.2;"><label>Area</label><input type="text" id="loc"></div>
+                <div class="field" style="flex: 1.3;"><label>Date</label><input type="date" id="delDate" onclick="this.showPicker()"></div>
+                <div class="field" style="flex: 0.6;"><label>Pay</label><select id="payPending" onchange="document.getElementById('payAmount').disabled = (this.value === 'NO');"><option value="NO">NO</option><option value="YES">YES</option></select></div>
+                <div class="field" style="flex: 0.8;"><label>Amt</label><input type="number" id="payAmount" disabled></div>
+                <button class="add-btn" onclick="addNewDelivery()">+ Add</button>
+                <button class="add-btn" style="background:#64748b" onclick="toggleSearch()">🔍</button>
+            </div>
+        </div>
+
+        <table id="dispatchTable">
+            <thead>
+                <tr>
+                    <th id="approve-head" style="display:none; width:30px;">Appr</th>
+                    <th id="pay-head" style="display:none; width:100px;">Pay Status</th>
+                    <th>Customer / Mobile</th>
+                    <th style="width:65px;">Bill</th>
+                    <th style="width:35px;">Qty</th>
+                    <th style="width:75px;">Exec</th>
+                    <th>Area</th>
+                    <th style="width:95px;">Target</th> 
+                    <th style="width:85px;">Status</th>
+                    <th id="action-head" style="display:none; width:85px;">Action</th>
+                    <th id="delete-head" style="display:none; width:20px;"></th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        const firebaseConfig = { databaseURL: "https://new-dispatch-approval-default-rtdb.firebaseio.com/" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const recordsRef = db.ref('dispatch_records');
+
+        let currentUserRole = '', currentFilter = 'all', globalSearchTerm = '', globalData = [];
+
+        function login(role) {
+            currentUserRole = role;
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('active-user-tag').innerText = role;
+            
+            const isFin = (role === 'Admin' || role === 'Sagar (Cashier)');
+            const isAdmin = (role === 'Admin'), isSuman = (role === 'Suman (Supervisor)');
+            const isSagar = (role === 'Sagar (Cashier)');
+            
+            // Sagar logic: Hide QC Pending nav
+            document.getElementById('qc-nav').style.display = isSagar ? 'none' : 'flex';
+            document.getElementById('entry-bar').style.display = isSuman ? 'none' : 'flex';
+            
+            document.getElementById('approve-head').style.display = isFin ? 'table-cell' : 'none';
+            document.getElementById('pay-head').style.display = (isFin || isSuman) ? 'table-cell' : 'none';
+            document.getElementById('action-head').style.display = (isAdmin || isSuman) ? 'table-cell' : 'none';
+            document.getElementById('delete-head').style.display = isAdmin ? 'table-cell' : 'none';
+            document.getElementById('dc-pending-box').style.display = (isAdmin || isSuman) ? 'block' : 'none';
+            document.getElementById('unapproved-nav').style.display = isSuman ? 'none' : 'flex';
+            document.getElementById('delDate').value = new Date().toISOString().split('T')[0];
+            loadData();
+        }
+
+        function toggleSearch() {
+            const term = prompt("Search Name, Bill or Area:", globalSearchTerm);
+            if (term !== null) { globalSearchTerm = term.toUpperCase(); loadData(); }
+        }
+
+        function loadData() {
+            recordsRef.on('value', (snapshot) => {
+                const rawData = snapshot.val() || {};
+                globalData = Object.keys(rawData).map(key => ({ ...rawData[key], id: key })).reverse();
+                const tbody = document.querySelector('#dispatchTable tbody');
+                tbody.innerHTML = '';
+                const today = new Date(); today.setHours(0,0,0,0);
+                let counts = { total: globalData.length, new: 0, unapproved: 0, dcPending: 0, globalPending: 0, todayCount: 0, monthTotal: 0, totalAmtPending: 0 };
+
+                globalData.forEach((item) => {
+                    const itemDate = new Date(item.date); itemDate.setHours(0,0,0,0);
+                    if (item.payPending === 'YES' && !item.payReceived) counts.totalAmtPending += parseFloat(item.payAmount || 0);
+
+                    let dateClass = 'date-upcoming';
+                    if (item.statusText === 'DELIVERED') { 
+                        dateClass = 'date-finished'; if (itemDate.getMonth() === today.getMonth()) counts.monthTotal++; 
+                    } else {
+                        counts.globalPending++;
+                        if (item.approved) counts.dcPending++;
+                        if (itemDate.getTime() === today.getTime()) { counts.todayCount++; dateClass = 'date-today'; }
+                        else if (itemDate.getTime() < today.getTime()) dateClass = 'date-overdue';
+                    }
+                    if (item.statusText === 'NEW') counts.new++;
+                    if (item.statusText === 'PENDING' && !item.approved) counts.unapproved++;
+
+                    const match = `${item.billNo} ${item.name} ${item.loc}`.toUpperCase().includes(globalSearchTerm);
+                    const filterMatch = (currentFilter === 'all') || (currentFilter === item.statusText) || (currentFilter === 'dc_pending' && item.approved && item.statusText !== 'DELIVERED') || (currentFilter === 'today' && itemDate.getTime() === today.getTime()) || (currentFilter === 'unapproved' && !item.approved && item.statusText === 'PENDING');
+
+                    if(match && filterMatch) {
+                        const row = tbody.insertRow();
+                        const isFin = (currentUserRole === 'Admin' || currentUserRole === 'Sagar (Cashier)');
+                        const isSuman = (currentUserRole === 'Suman (Supervisor)');
+                        const isSagar = (currentUserRole === 'Sagar (Cashier)');
+                        
+                        if(isFin || isSuman) {
+                            row.insertCell().style.display = isFin ? 'table-cell' : 'none';
+                            if(isFin) row.cells[0].innerHTML = item.statusText === 'PENDING' ? `<input type="checkbox" ${item.approved ? 'checked' : ''} onchange="recordsRef.child('${item.id}').update({approved: !${item.approved}})">` : '-';
+                            
+                            let payHtml = '';
+                            if (item.payPending === 'NO') payHtml = `<span class="pay-pill pay-no">NO</span>`;
+                            else if (item.payReceived) payHtml = `<span class="pay-pill pay-done" onclick="${isFin ? `togglePay('${item.id}', true)` : ''}">PAID</span>`;
+                            else {
+                                const sagarLocked = (isSagar && item.statusText !== 'DELIVERED');
+                                payHtml = `<span class="pay-pill pay-yes ${(sagarLocked || !isFin) ? 'pay-locked' : ''}" onclick="${(sagarLocked || !isFin) ? '' : `togglePay('${item.id}', false)`}">YES - ₹${item.payAmount}</span>`;
+                            }
+                            row.insertCell().innerHTML = payHtml;
+                        }
+                        
+                        // Role-based status lock logic
+                        let statusLock = false;
+                        if (isSagar) statusLock = true;
+                        if (isSuman && item.statusText !== 'NEW') statusLock = true;
+
+                        row.innerHTML += `
+                            <td><b style="${item.payReceived ? 'color:var(--success)' : ''}">${item.name}</b><br><a href="https://wa.me/91${item.phone}" target="_blank" style="color:var(--accent-blue); text-decoration:none; font-size:9px;">📱 ${item.phone || '---'}</a></td>
+                            <td style="font-weight:700;">${item.billNo || '-'}</td>
+                            <td>${item.qty || '0'}</td>
+                            <td>${item.exec || '-'}</td>
+                            <td>${item.loc || '-'}</td>
+                            <td><input type="date" value="${item.date}" onchange="recordsRef.child('${item.id}').update({date: this.value})" class="date-input ${dateClass}"></td>
+                            <td><span class="status-pill ${item.statusClass} ${statusLock ? 'status-locked' : ''}" onclick="${statusLock ? '' : `cycleStatus('${item.id}', '${item.statusText}')`}">${item.statusText}</span></td>
+                        `;
+                        if(isSuman || currentUserRole === 'Admin') {
+                            const ac = row.insertCell();
+                            if(item.approved && item.statusText !== 'DELIVERED') ac.innerHTML = `<button onclick="exportDC('${item.id}')" style="background:var(--accent-blue); color:white; border:none; padding:5px; border-radius:4px; font-size:9px; cursor:pointer;">EXPORT</button>`;
+                            else ac.innerHTML = '-';
+                        }
+                        if(currentUserRole === 'Admin') row.insertCell().innerHTML = `<span style="color:red; cursor:pointer;" onclick="if(confirm('Delete?')) recordsRef.child('${item.id}').remove()">🗑️</span>`;
+                    }
+                });
+
+                document.getElementById('sidebar-amt-pending').innerText = `₹${counts.totalAmtPending}`;
+                document.getElementById('total-pending-box').classList.toggle('blink-urgent', counts.totalAmtPending > 0);
+                document.getElementById('unapproved-nav').classList.toggle('blink-urgent', counts.unapproved > 0);
+                document.getElementById('qc-nav').classList.toggle('blink-urgent', counts.new > 0);
+                if(currentUserRole !== 'Sagar (Cashier)') document.getElementById('dc-pending-box').classList.toggle('blink-urgent', counts.dcPending > 0);
+                
+                document.getElementById('count-unapproved').innerText = counts.unapproved;
+                document.getElementById('count-dc-pending').innerText = counts.dcPending;
+                document.getElementById('count-total').innerText = counts.total;
+                document.getElementById('count-qc').innerText = counts.new;
+                document.getElementById('count-today').innerText = counts.todayCount;
+                document.getElementById('count-pending-total').innerText = counts.globalPending;
+                document.getElementById('count-month-total').innerText = counts.monthTotal;
+            });
+        }
+
+        function togglePay(id, currentStatus) { recordsRef.child(id).update({ payReceived: !currentStatus }); }
+        
+        function cycleStatus(id, cur) { 
+            const states = { 'NEW': { t: 'PENDING', c: 'status-pending', app: false }, 'PENDING': { t: 'DELIVERED', c: 'status-delivered', app: true }, 'DELIVERED': { t: 'NEW', c: 'status-new', app: false } }; 
+            const n = states[cur]; 
+            recordsRef.child(id).update({ statusText: n.t, statusClass: n.c, approved: n.app }); 
+        }
+
+        function exportDC(id) {
+            const item = globalData.find(i => i.id === id);
+            const pay = item.payReceived ? "PAID" : (item.payPending === 'YES' ? 'PENDING ₹'+item.payAmount : 'COD');
+            const text = `URBAN CASA\n----------\nBill: ${item.billNo}\nCust: ${item.name}\nArea: ${item.loc}\nPay: ${pay}\nQC: ${currentUserRole.split(' ')[0]}\n----------\nDISPATCHED`;
+            navigator.clipboard.writeText(text).then(() => {
+                recordsRef.child(id).update({ statusText: 'DELIVERED', statusClass: 'status-delivered', approved: true });
+                if(confirm("Copied! Open WA?")) window.open(`https://wa.me/91${item.phone}?text=${encodeURIComponent(text)}`, '_blank');
+            });
+        }
+        function addNewDelivery() {
+            const n = document.getElementById('custName').value, d = document.getElementById('delDate').value;
+            if(!n || !d) return alert("Required: Name & Date");
+            recordsRef.push({ 
+                name: n.toUpperCase(), phone: document.getElementById('custPhone').value, billNo: document.getElementById('billNo').value,
+                qty: document.getElementById('qty').value, exec: document.getElementById('execName').value.toUpperCase(),
+                loc: document.getElementById('loc').value.toUpperCase(), date: d, 
+                statusText: 'NEW', statusClass: 'status-new', approved: false, payReceived: false,
+                payPending: document.getElementById('payPending').value, payAmount: document.getElementById('payAmount').value
+            });
+            ['custName','custPhone','billNo','qty','execName','loc','payAmount'].forEach(i => document.getElementById(i).value = '');
+        }
+        function setFilter(t, e) { currentFilter = t; document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('selected')); e.classList.add('selected'); loadData(); }
+    </script>
+</body>
+</html>
