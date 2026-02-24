@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Urban Casa | Dispatch v15.0 Master</title>
+    <title>Urban Casa | Dispatch v15.6 Final</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -148,14 +148,11 @@
             document.getElementById('login-overlay').style.display = 'none';
             document.getElementById('active-user-tag').innerText = role;
             
-            const isFin = (role === 'Admin' || role === 'Sagar (Cashier)');
-            const isAdmin = (role === 'Admin'), isSuman = (role === 'Suman (Supervisor)');
-            const isSagar = (role === 'Sagar (Cashier)');
+            const isAdmin = (role === 'Admin'), isSagar = (role === 'Sagar (Cashier)'), isSuman = (role === 'Suman (Supervisor)');
+            const isFin = (isAdmin || isSagar);
             
-            // Sagar logic: Hide QC Pending nav
             document.getElementById('qc-nav').style.display = isSagar ? 'none' : 'flex';
             document.getElementById('entry-bar').style.display = isSuman ? 'none' : 'flex';
-            
             document.getElementById('approve-head').style.display = isFin ? 'table-cell' : 'none';
             document.getElementById('pay-head').style.display = (isFin || isSuman) ? 'table-cell' : 'none';
             document.getElementById('action-head').style.display = (isAdmin || isSuman) ? 'table-cell' : 'none';
@@ -182,7 +179,10 @@
 
                 globalData.forEach((item) => {
                     const itemDate = new Date(item.date); itemDate.setHours(0,0,0,0);
-                    if (item.payPending === 'YES' && !item.payReceived) counts.totalAmtPending += parseFloat(item.payAmount || 0);
+                    
+                    // Force payAmount to number for accurate sidebar calculations
+                    const amt = Number(item.payAmount) || 0;
+                    if (item.payPending === 'YES' && !item.payReceived) counts.totalAmtPending += amt;
 
                     let dateClass = 'date-upcoming';
                     if (item.statusText === 'DELIVERED') { 
@@ -201,9 +201,8 @@
 
                     if(match && filterMatch) {
                         const row = tbody.insertRow();
-                        const isFin = (currentUserRole === 'Admin' || currentUserRole === 'Sagar (Cashier)');
-                        const isSuman = (currentUserRole === 'Suman (Supervisor)');
-                        const isSagar = (currentUserRole === 'Sagar (Cashier)');
+                        const isAdmin = (currentUserRole === 'Admin'), isSagar = (currentUserRole === 'Sagar (Cashier)'), isSuman = (currentUserRole === 'Suman (Supervisor)');
+                        const isFin = (isAdmin || isSagar);
                         
                         if(isFin || isSuman) {
                             row.insertCell().style.display = isFin ? 'table-cell' : 'none';
@@ -211,34 +210,39 @@
                             
                             let payHtml = '';
                             if (item.payPending === 'NO') payHtml = `<span class="pay-pill pay-no">NO</span>`;
-                            else if (item.payReceived) payHtml = `<span class="pay-pill pay-done" onclick="${isFin ? `togglePay('${item.id}', true)` : ''}">PAID</span>`;
-                            else {
-                                const sagarLocked = (isSagar && item.statusText !== 'DELIVERED');
-                                payHtml = `<span class="pay-pill pay-yes ${(sagarLocked || !isFin) ? 'pay-locked' : ''}" onclick="${(sagarLocked || !isFin) ? '' : `togglePay('${item.id}', false)`}">YES - ₹${item.payAmount}</span>`;
+                            else if (item.payReceived) {
+                                // Locked visually for Sagar if already paid
+                                const sagarLocked = isSagar; 
+                                payHtml = `<span class="pay-pill pay-done ${sagarLocked ? 'pay-locked' : ''}" onclick="${sagarLocked ? '' : `togglePay('${item.id}', true)`}">PAID</span>`;
+                            } else {
+                                // Locked for Supervisor (Suman)
+                                payHtml = `<span class="pay-pill pay-yes ${!isFin ? 'pay-locked' : ''}" onclick="${!isFin ? '' : `togglePay('${item.id}', false)`}">YES - ₹${amt}</span>`;
                             }
                             row.insertCell().innerHTML = payHtml;
                         }
                         
-                        // Role-based status lock logic
                         let statusLock = false;
                         if (isSagar) statusLock = true;
                         if (isSuman && item.statusText !== 'NEW') statusLock = true;
 
+                        // Sanitize phone for clean WhatsApp links
+                        const cleanPhone = (item.phone || '').replace(/\D/g, '').slice(-10);
+
                         row.innerHTML += `
-                            <td><b style="${item.payReceived ? 'color:var(--success)' : ''}">${item.name}</b><br><a href="https://wa.me/91${item.phone}" target="_blank" style="color:var(--accent-blue); text-decoration:none; font-size:9px;">📱 ${item.phone || '---'}</a></td>
+                            <td><b style="${item.payReceived ? 'color:var(--success)' : ''}">${item.name}</b><br><a href="https://wa.me/91${cleanPhone}" target="_blank" style="color:var(--accent-blue); text-decoration:none; font-size:9px;">📱 ${item.phone || '---'}</a></td>
                             <td style="font-weight:700;">${item.billNo || '-'}</td>
                             <td>${item.qty || '0'}</td>
                             <td>${item.exec || '-'}</td>
                             <td>${item.loc || '-'}</td>
-                            <td><input type="date" value="${item.date}" onchange="recordsRef.child('${item.id}').update({date: this.value})" class="date-input ${dateClass}"></td>
+                            <td><input type="date" value="${item.date}" ${isSagar ? 'disabled' : ''} onchange="recordsRef.child('${item.id}').update({date: this.value})" class="date-input ${dateClass}"></td>
                             <td><span class="status-pill ${item.statusClass} ${statusLock ? 'status-locked' : ''}" onclick="${statusLock ? '' : `cycleStatus('${item.id}', '${item.statusText}')`}">${item.statusText}</span></td>
                         `;
-                        if(isSuman || currentUserRole === 'Admin') {
+                        if(isSuman || isAdmin) {
                             const ac = row.insertCell();
                             if(item.approved && item.statusText !== 'DELIVERED') ac.innerHTML = `<button onclick="exportDC('${item.id}')" style="background:var(--accent-blue); color:white; border:none; padding:5px; border-radius:4px; font-size:9px; cursor:pointer;">EXPORT</button>`;
                             else ac.innerHTML = '-';
                         }
-                        if(currentUserRole === 'Admin') row.insertCell().innerHTML = `<span style="color:red; cursor:pointer;" onclick="if(confirm('Delete?')) recordsRef.child('${item.id}').remove()">🗑️</span>`;
+                        if(isAdmin) row.insertCell().innerHTML = `<span style="color:red; cursor:pointer;" onclick="if(confirm('Delete?')) recordsRef.child('${item.id}').remove()">🗑️</span>`;
                     }
                 });
 
@@ -258,7 +262,14 @@
             });
         }
 
-        function togglePay(id, currentStatus) { recordsRef.child(id).update({ payReceived: !currentStatus }); }
+        function togglePay(id, currentStatus) { 
+            // Prevent Sagar from reversing a payment once marked PAID
+            if (currentUserRole === 'Sagar (Cashier)' && currentStatus === true) {
+                alert("Restricted: Only Admin can undo a PAID status.");
+                return;
+            }
+            recordsRef.child(id).update({ payReceived: !currentStatus }); 
+        }
         
         function cycleStatus(id, cur) { 
             const states = { 'NEW': { t: 'PENDING', c: 'status-pending', app: false }, 'PENDING': { t: 'DELIVERED', c: 'status-delivered', app: true }, 'DELIVERED': { t: 'NEW', c: 'status-new', app: false } }; 
@@ -270,9 +281,11 @@
             const item = globalData.find(i => i.id === id);
             const pay = item.payReceived ? "PAID" : (item.payPending === 'YES' ? 'PENDING ₹'+item.payAmount : 'COD');
             const text = `URBAN CASA\n----------\nBill: ${item.billNo}\nCust: ${item.name}\nArea: ${item.loc}\nPay: ${pay}\nQC: ${currentUserRole.split(' ')[0]}\n----------\nDISPATCHED`;
+            const cleanPhone = (item.phone || '').replace(/\D/g, '').slice(-10);
+            
             navigator.clipboard.writeText(text).then(() => {
                 recordsRef.child(id).update({ statusText: 'DELIVERED', statusClass: 'status-delivered', approved: true });
-                if(confirm("Copied! Open WA?")) window.open(`https://wa.me/91${item.phone}?text=${encodeURIComponent(text)}`, '_blank');
+                if(confirm("Copied! Open WA?")) window.open(`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
             });
         }
         function addNewDelivery() {
@@ -283,7 +296,8 @@
                 qty: document.getElementById('qty').value, exec: document.getElementById('execName').value.toUpperCase(),
                 loc: document.getElementById('loc').value.toUpperCase(), date: d, 
                 statusText: 'NEW', statusClass: 'status-new', approved: false, payReceived: false,
-                payPending: document.getElementById('payPending').value, payAmount: document.getElementById('payAmount').value
+                payPending: document.getElementById('payPending').value, 
+                payAmount: Number(document.getElementById('payAmount').value) || 0 // Save as number
             });
             ['custName','custPhone','billNo','qty','execName','loc','payAmount'].forEach(i => document.getElementById(i).value = '');
         }
