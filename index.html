@@ -3,124 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Urban Casa | Dispatch Elite v12.5 (Fix Counters)</title>
+    <title>Urban Casa | Dispatch Elite v12.9.10</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
     <style>
         :root {
-            --bg-dark: #0a0e1a; --sidebar-bg: #0d1224; --card-bg: #151b33;
-            --accent-blue: #3b82f6; --text-main: #ffffff; --text-dim: #94a3b8;
-            --danger: #ef4444; --success: #10b981; --purple: #a855f7; --warning: #f59e0b;
+            --bg-dark: #070b14; 
+            --sidebar-bg: #0d1224; 
+            --card-bg: #151b33;
+            --accent-blue: #3b82f6; 
+            --accent-hover: #2563eb;
+            --text-main: #f8fafc; 
+            --text-dim: #cbd5e1;
+            --danger: #ff4d4d; 
+            --success: #10b981; 
+            --purple: #a855f7; 
+            --warning: #fbbf24;
         }
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: var(--bg-dark); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; font-size: 12px; }
-        .sidebar { width: 210px; background-color: var(--sidebar-bg); padding: 12px; display: flex; flex-direction: column; border-right: 1px solid #1e293b; z-index: 10; }
-        .user-tag { font-size: 10px; background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); padding: 6px; border-radius: 4px; margin-bottom: 15px; text-transform: uppercase; text-align: center; border: 1px solid var(--accent-blue); font-weight: bold; }
-        .nav-item { padding: 9px; border-radius: 6px; margin-bottom: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-dim); transition: 0.2s; }
-        .nav-item:hover { background: rgba(255,255,255,0.05); }
-        .nav-item.selected { background: var(--accent-blue); color: white; }
-        .count { background: rgba(0,0,0,0.4); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: bold; }
         
-        @keyframes rapid-blink { 0% { background: rgba(239, 68, 68, 0.15); color: #ef4444; } 50% { background: #ef4444; color: white; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); } 100% { background: rgba(239, 68, 68, 0.15); color: #ef4444; } }
-        @keyframes qc-blink { 0% { background: rgba(245, 158, 11, 0.15); color: var(--warning); } 50% { background: var(--warning); color: black; box-shadow: 0 0 8px rgba(245, 158, 11, 0.4); } 100% { background: rgba(245, 158, 11, 0.15); color: var(--warning); } }
+        body { margin: 0; font-family: 'Inter', 'Segoe UI', sans-serif; background-color: var(--bg-dark); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; font-size: 11px; letter-spacing: 0.2px; }
         
-        .blink-urgent { animation: rapid-blink 0.5s infinite; font-weight: 900 !important; }
-        .blink-qc { animation: qc-blink 0.6s infinite; font-weight: 900 !important; }
-        
-        .stat-box { border-radius: 8px; padding: 10px; margin-bottom: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
-        .pending-box { background: rgba(245, 158, 11, 0.05); border-color: rgba(245, 158, 11, 0.2); }
-        .delivered-box { background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2); }
-        .stat-box label { font-size: 8px; text-transform: uppercase; font-weight: bold; display: block; margin-bottom: 2px; }
-        .stat-count { font-size: 20px; font-weight: 900; }
-        .pending-box .stat-count { color: var(--warning); } .delivered-box .stat-count { color: var(--success); }
-        
-        .date-input-edit { background: transparent; border: none; color: inherit; font-family: inherit; font-size: 11px; cursor: pointer; padding: 2px; width: 105px; outline: none; }
-        .date-overdue { color: var(--danger) !important; font-weight: 900; }
-        .date-safe { color: var(--success) !important; }
-        
-        .btn-dc-export { width: 100%; padding: 12px; margin: 10px 0; border: none; border-radius: 6px; font-weight: 800; cursor: pointer; background: linear-gradient(45deg, #059669, #10b981); color: white; display: none; }
-        .btn-dc-export.locked { opacity: 0.15; filter: grayscale(1); cursor: not-allowed; pointer-events: none; }
-        
-        .main-content { flex: 1; padding: 20px; overflow-y: auto; }
-        .entry-container { display: none; background: #111827; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #1e293b; }
-        .input-group { display: flex; gap: 12px; align-items: flex-end; }
-        .field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
-        .field label { font-size: 9px; color: var(--accent-blue); text-transform: uppercase; font-weight: bold; }
-        .field input { background: #0a0e1a; border: 1px solid #334155; color: white; padding: 8px; border-radius: 4px; font-size: 11px; outline: none; width: 100%; box-sizing: border-box; }
-        
-        .search-wrapper { position: relative; flex: 1.5; }
-        .search-icon { position: absolute; left: 10px; top: 25px; color: var(--text-dim); pointer-events: none; }
-        #globalSearch { padding-left: 30px !important; border-color: var(--accent-blue) !important; }
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: var(--card-bg); padding: 30px; border-radius: 12px; text-align: center; border: 1px solid #1e3a8a; width: 260px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+        .user-btn { width: 100%; padding: 11px; margin: 6px 0; border: none; border-radius: 6px; cursor: pointer; font-weight: 800; color: white; transition: 0.2s; text-transform: uppercase; }
 
-        table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 8px; overflow: hidden; }
-        th { text-align: left; padding: 12px 10px; font-size: 10px; color: var(--text-dim); text-transform: uppercase; border-bottom: 2px solid #1e293b; background: rgba(0,0,0,0.2); }
-        td { padding: 12px 10px; border-bottom: 1px solid #1e293b; }
+        .sidebar { width: 200px; background-color: var(--sidebar-bg); padding: 15px; display: flex; flex-direction: column; border-right: 1px solid #1e293b; z-index: 10; }
+        .user-tag { font-size: 9px; background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); padding: 7px; border-radius: 6px; margin-bottom: 20px; text-transform: uppercase; text-align: center; border: 1px solid var(--accent-blue); font-weight: 900; }
         
-        .status-pill { padding: 5px 0; border-radius: 4px; font-size: 9px; font-weight: 800; display: inline-block; width: 85px; text-align: center; text-transform: uppercase; cursor: pointer; }
-        .status-pill.locked-btn { cursor: not-allowed; opacity: 0.4; filter: grayscale(0.7); pointer-events: none; }
-        .status-new { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
-        .status-pending { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
-        .status-delivered { background: rgba(168, 85, 247, 0.1); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); }
+        .nav-item { padding: 9px 12px; border-radius: 6px; margin-bottom: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-dim); transition: 0.2s; font-weight: 500; }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+        .nav-item.selected { background: var(--accent-blue); color: white; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); }
+        .count { background: rgba(0,0,0,0.3); padding: 2px 7px; border-radius: 10px; font-size: 9px; font-weight: bold; }
         
-        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-        .login-box { background: var(--card-bg); padding: 30px; border-radius: 12px; text-align: center; border: 1px solid #1e3a8a; width: 280px; }
-        .user-btn { width: 100%; padding: 12px; margin: 8px 0; border: none; border-radius: 6px; cursor: pointer; font-weight: 800; color: white; }
+        @keyframes rapid-blink { 
+            0%, 100% { background: rgba(239, 68, 68, 0.2); color: #ff4d4d; } 
+            50% { background: #ef4444; color: white; } 
+        }
+        .blink-urgent { animation: rapid-blink 0.8s infinite; font-weight: 900 !important; }
+        
+        .main-content { flex: 1; padding: 15px; overflow-y: auto; background-image: radial-gradient(circle at top right, #111827, #070b14); }
+        
+        /* ALIGNED SINGLE ROW ENTRY BAR */
+        .entry-container { display: none; background: rgba(21, 27, 51, 0.8); backdrop-filter: blur(10px); padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #2d3748; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .input-group { display: flex; gap: 6px; align-items: flex-end; width: 100%; flex-wrap: nowrap; }
+        
+        .field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+        .field label { font-size: 8px; color: var(--accent-blue); text-transform: uppercase; font-weight: 800; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; }
+        .field input { background: #070b14; border: 1px solid #334155; color: white; padding: 7px; border-radius: 5px; font-size: 11px; outline: none; transition: 0.15s; width: 100%; box-sizing: border-box; }
+        .field input:focus { border-color: var(--accent-blue); }
+        
+        /* Specific widths for Executive and Location to keep row single */
+        .field-exec { flex: 0.6; }
+        .field-loc { flex: 0.6; }
+        .field-bill { flex: 0.4; }
+        .field-qty { flex: 0.3; }
+        .field-mobile { flex: 0.6; }
+        .field-date { flex: 0.7; }
+
+        .add-btn { 
+            background: linear-gradient(135deg, var(--accent-blue), #1e40af); 
+            color: white; border: none; border-radius: 5px; padding: 0 15px; height: 31px; 
+            font-weight: 800; cursor: pointer; transition: 0.2s;
+            border: 1px solid rgba(255,255,255,0.1); text-transform: uppercase; font-size: 10px; white-space: nowrap;
+        }
+
+        .search-trigger-btn {
+            background: rgba(255,255,255,0.05); border: 1px solid #334155; color: var(--text-dim);
+            height: 31px; width: 34px; border-radius: 5px; cursor: pointer; font-size: 14px;
+            display: flex; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0;
+        }
+        .search-trigger-btn.active { background: var(--accent-blue); color: white; border-color: white; }
+
+        table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 8px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        th { text-align: left; padding: 10px; font-size: 9px; color: var(--text-dim); text-transform: uppercase; border-bottom: 2px solid #1e293b; letter-spacing: 0.8px; }
+        td { padding: 10px; border-bottom: 1px solid #1e293b; color: var(--text-main); }
+        
+        .status-pill { padding: 4px 0; border-radius: 4px; font-size: 8px; font-weight: 800; display: inline-block; width: 75px; text-align: center; text-transform: uppercase; cursor: pointer; }
+        .status-new { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .status-pending { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .status-delivered { background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); }
+
+        .date-passed { color: #ff4d4d !important; font-weight: 800; }
+        .date-near { color: #fbbf24 !important; font-weight: 800; }
+        .date-upcoming { color: #34d399 !important; font-weight: 800; }
+
+        .table-date-input { background: transparent; border: 1px solid transparent; color: inherit; font-size: 11px; width: 100px; cursor: pointer; font-weight: inherit; }
+        .stat-box { border-radius: 8px; padding: 10px; margin-bottom: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02); }
+        .stat-count { font-size: 18px; font-weight: 900; }
+        .inline-dc-btn { background: var(--accent-blue); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 8px; font-weight: 900; cursor: pointer; text-transform: uppercase; }
+        .delete-btn { color: var(--danger); cursor: pointer; font-size: 13px; opacity: 0.7; }
     </style>
 </head>
 <body>
     <div id="login-overlay">
         <div class="login-box">
-            <h2 style="margin:0 0 20px 0; color:var(--accent-blue);">URBAN CASA</h2>
-            <button class="user-btn" style="background:var(--accent-blue)" onclick="login('Admin')">ADMIN</button>
-            <button class="user-btn" style="background:var(--purple)" onclick="login('Sagar (Cashier)')">SAGAR</button>
-            <button class="user-btn" style="background:var(--success)" onclick="login('Suman (Supervisor)')">SUMAN</button>
+            <h2 style="margin:0 0 20px 0; color:var(--accent-blue); letter-spacing:1px; font-size: 1.2rem;">URBAN CASA</h2>
+            <button class="user-btn" style="background:var(--accent-blue);" onclick="login('Admin')">ADMIN</button>
+            <button class="user-btn" style="background:var(--purple);" onclick="login('Sagar (Cashier)')">SAGAR</button>
+            <button class="user-btn" style="background:var(--success);" onclick="login('Suman (Supervisor)')">SUMAN</button>
         </div>
     </div>
 
     <div class="sidebar">
-        <div class="logo" style="font-weight:800; font-size:0.9rem; margin-bottom:15px;">URBAN CASA <span style="font-size:0.5rem; color:var(--accent-blue); display:block;">v12.5</span></div>
+        <div class="logo" style="font-weight:900; font-size:1rem; margin-bottom:15px; color:var(--accent-blue);">URBAN CASA <span style="font-size:0.5rem; color:var(--text-dim); display:block; font-weight:400;">v12.9.10</span></div>
         <div id="active-user-tag" class="user-tag">---</div>
         <div class="nav-item selected" onclick="setFilter('all', this)">All Shipments <span class="count" id="count-total">0</span></div>
-        <div id="qc-nav" class="nav-item" style="display:none;" onclick="setFilter('NEW', this)">QC Check Pending <span class="count" id="count-qc">0</span></div>
-        <div class="nav-item" style="border-left: 3px solid #3b82f6" onclick="setFilter('today', this)">Today <span class="count" id="count-today">0</span></div>
-        <div id="overdue-nav" class="nav-item" style="border-left: 3px solid #ef4444" onclick="setFilter('overdue', this)">Overdue <span class="count" id="count-overdue">0</span></div>
-        <div style="height:1px; background:#1e293b; margin:10px 0;"></div>
+        <div id="qc-nav" class="nav-item" style="display:none;" onclick="setFilter('NEW', this)">QC Pending <span class="count" id="count-qc">0</span></div>
+        <div class="nav-item" onclick="setFilter('today', this)">Today <span class="count" id="count-today">0</span></div>
+        <div class="nav-item" onclick="setFilter('overdue', this)">Overdue <span class="count" id="count-overdue">0</span></div>
+        <div id="unapproved-nav" class="nav-item" onclick="setFilter('unapproved', this)">Un Approved <span class="count" id="count-unapproved">0</span></div>
         <div class="nav-item" onclick="setFilter('PENDING', this)">Pending <span class="count" id="count-pending">0</span></div>
         <div class="nav-item" onclick="setFilter('DELIVERED', this)">Delivered <span class="count" id="count-delivered">0</span></div>
-        <div id="unapproved-nav" class="nav-item" onclick="setFilter('unapproved', this)">Un Approved <span class="count" id="count-unapproved">0</span></div>
-        <button id="dc-export-btn" class="btn-dc-export locked" onclick="executeExport()">DC EXPORT</button>
         <div style="margin-top: auto; padding-top: 15px; border-top: 1px solid #1e293b;">
-            <div class="stat-box pending-box"><label>DELIVERY PENDING</label><div class="stat-count" id="count-pending-total">0</div></div>
-            <div class="stat-box delivered-box"><label id="stat-month-label">DELIVERED (MONTH)</label><div class="stat-count" id="count-month-total">0</div></div>
-            <button class="user-btn" style="background:transparent; border:1px solid #334155; color:var(--text-dim); font-size:10px; margin:0;" onclick="location.reload()">LOGOUT</button>
+            <div id="dc-pending-box" class="stat-box" onclick="setFilter('dc_pending', this)" style="display:none; cursor: pointer; border: 1px dashed var(--accent-blue);">
+                <label style="font-size:8px; font-weight:800; color:var(--accent-blue);">DC EXPORT PENDING</label>
+                <div class="stat-count" id="count-dc-pending" style="color: white;">0</div>
+            </div>
+            <div class="stat-box"><label style="font-size:8px; font-weight:800; color:var(--warning)">TOTAL PENDING</label><div class="stat-count" id="count-pending-total" style="color:var(--warning)">0</div></div>
+            <div class="stat-box"><label style="font-size:8px; font-weight:800; color:var(--success)">DELIVERED (MONTH)</label><div class="stat-count" id="count-month-total" style="color:var(--success)">0</div></div>
+            <button class="user-btn" style="background:transparent; border:1px solid #334155; color:var(--text-dim); font-size:9px; margin-top:5px;" onclick="location.reload()">LOGOUT</button>
         </div>
     </div>
 
     <div class="main-content">
         <div class="entry-container" id="entry-bar">
             <div class="input-group">
-                <div class="field"><label>Customer Name</label><input type="text" id="custName" oninput="formatTitleCase(this)"></div>
-                <div class="field"><label>Phone</label><input type="text" id="custPhone"></div>
-                <div class="field"><label>Executive</label><input type="text" id="execName" oninput="formatTitleCase(this)"></div>
-                <div class="field"><label>Location</label><input type="text" id="loc" oninput="formatTitleCase(this)"></div>
-                <div class="field"><label>Delivery Date</label><input type="date" id="delDate" onclick="this.showPicker()"></div>
-                
-                <div class="field search-wrapper">
-                    <label>Search Global</label>
-                    <span class="search-icon">🔍</span>
-                    <input type="text" id="globalSearch" placeholder="Name, Phone, Loc..." onkeyup="loadData()">
-                </div>
-
-                <button class="user-btn" style="background:var(--accent-blue); margin:0; width:auto; padding:0 20px; height:33px;" onclick="addNewDelivery()">+ ADD</button>
+                <div class="field"><label>Name</label><input type="text" id="custName" placeholder="Customer"></div>
+                <div class="field field-mobile"><label>Mobile</label><input type="text" id="custPhone" placeholder="Mobile"></div>
+                <div class="field field-bill"><label>Bill</label><input type="text" id="billNo" placeholder="No"></div>
+                <div class="field field-qty"><label>Qty</label><input type="text" id="qty" placeholder="0"></div>
+                <div class="field field-exec"><label>Exec</label><input type="text" id="execName" placeholder="Exec"></div>
+                <div class="field field-loc"><label>Loc</label><input type="text" id="loc" placeholder="Area"></div>
+                <div class="field field-date"><label>Del Date</label><input type="date" id="delDate" onclick="this.showPicker()"></div>
+                <button class="add-btn" onclick="addNewDelivery()">+ Add</button>
+                <button class="search-trigger-btn" id="searchIconBtn" title="Search Table" onclick="toggleSearch()">🔍</button>
             </div>
         </div>
+
         <table id="dispatchTable">
             <thead>
                 <tr>
-                    <th id="approve-head" style="width:50px; display:none; text-align:center;">Appr</th>
-                    <th>Customer Details</th><th>Executive</th><th>Location</th><th>Delivery Date</th><th>Status</th>
-                    <th id="admin-del-col" style="display:none; width:30px;">Act</th>
+                    <th id="approve-head" style="width:35px; display:none;">Appr</th>
+                    <th>Customer Details</th>
+                    <th style="width:70px;">Bill No</th>
+                    <th style="width:40px;">Qty</th>
+                    <th style="width:80px;">Executive</th>
+                    <th style="width:80px;">Location</th>
+                    <th style="width:110px;">Target Date</th> 
+                    <th>Status</th>
+                    <th id="suman-action-head" style="display:none; width:80px;">Action</th>
+                    <th id="delete-head" style="width:30px; display:none;">Act</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -135,43 +169,35 @@
 
         let currentUserRole = '';
         let currentFilter = 'all';
-        let selectedRowId = null;
+        let globalSearchTerm = '';
 
-        function formatTitleCase(input) {
-            let words = input.value.split(' ');
-            for (let i = 0; i < words.length; i++) {
-                if (words[i].length > 0) words[i] = words[i].charAt(0).toUpperCase() + words[i].slice(1);
+        function setDefaultDate() { document.getElementById('delDate').value = new Date().toISOString().split('T')[0]; }
+
+        function toggleSearch() {
+            const term = prompt("Search Name, Bill No, or Location:", globalSearchTerm);
+            if (term !== null) {
+                globalSearchTerm = term.toUpperCase();
+                const btn = document.getElementById('searchIconBtn');
+                if(globalSearchTerm) btn.classList.add('active');
+                else btn.classList.remove('active');
+                loadData();
             }
-            input.value = words.join(' ');
         }
 
         function login(role) {
             currentUserRole = role;
             document.getElementById('login-overlay').style.display = 'none';
             document.getElementById('active-user-tag').innerText = role;
-            const isSagar = (role === 'Sagar (Cashier)');
-            const isSuman = (role === 'Suman (Supervisor)');
-            const isAdmin = (role === 'Admin');
-            
-            document.getElementById('dc-export-btn').style.display = (isAdmin || isSuman) ? 'block' : 'none';
-            document.getElementById('unapproved-nav').style.display = isSuman ? 'none' : 'flex';
+            const isAdmin = (role === 'Admin'), isSuman = (role === 'Suman (Supervisor)'), isSagar = (role === 'Sagar (Cashier)');
             document.getElementById('qc-nav').style.display = (isAdmin || isSuman) ? 'flex' : 'none';
-            document.getElementById('overdue-nav').style.display = isSagar ? 'none' : 'flex';
-            document.getElementById('entry-bar').style.display = isSuman ? 'none' : 'block';
-            document.getElementById('approve-head').style.display = isSuman ? 'none' : 'table-cell';
-            if(isAdmin) document.getElementById('admin-del-col').style.display = 'table-cell';
-            
-            const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-            document.getElementById('stat-month-label').innerText = `DELIVERED (${months[new Date().getMonth()]})`;
+            document.getElementById('entry-bar').style.display = isSuman ? 'none' : 'flex';
+            document.getElementById('approve-head').style.display = (isAdmin || isSagar) ? 'table-cell' : 'none';
+            document.getElementById('suman-action-head').style.display = isSuman ? 'table-cell' : 'none';
+            document.getElementById('delete-head').style.display = isAdmin ? 'table-cell' : 'none';
+            document.getElementById('dc-pending-box').style.display = (isAdmin || isSuman) ? 'block' : 'none';
+            document.getElementById('unapproved-nav').style.display = isSuman ? 'none' : 'flex';
+            setDefaultDate();
             loadData();
-        }
-
-        function getDateClass(dateStr, status) {
-            if (!dateStr || status === 'DELIVERED') return 'date-safe';
-            const now = new Date(); now.setHours(0,0,0,0);
-            const target = new Date(dateStr); target.setHours(0,0,0,0);
-            const diffDays = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
-            return diffDays < 0 ? 'date-overdue' : 'date-safe';
         }
 
         function loadData() {
@@ -180,149 +206,111 @@
                 const data = Object.keys(rawData).map(key => ({ ...rawData[key], id: key })).reverse();
                 const tbody = document.querySelector('#dispatchTable tbody');
                 tbody.innerHTML = '';
-                const now = new Date(); now.setHours(0,0,0,0);
-                const searchQuery = document.getElementById('globalSearch').value.toLowerCase();
+                const today = new Date(); today.setHours(0,0,0,0);
+                const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+                const threeDaysOut = new Date(today); threeDaysOut.setDate(today.getDate() + 3);
                 
-                // Initialize ALL counters to zero
-                let counts = { total: data.length, new: 0, pending: 0, delivered: 0, unapproved: 0, today: 0, overdue: 0, monthTotal: 0, globalPending: 0 };
+                let counts = { total: data.length, new: 0, pending: 0, delivered: 0, unapproved: 0, dcPending: 0, globalPending: 0, todayCount: 0, overdueCount: 0, monthTotal: 0 };
 
                 data.forEach((item) => {
-                    const itemDateStr = item.date || "";
-                    const itemDate = itemDateStr ? new Date(itemDateStr) : null;
-                    const dateStatusClass = getDateClass(itemDateStr, item.statusText);
-                    const isOverdue = dateStatusClass === 'date-overdue';
-                    const isToday = itemDate && new Date(itemDate).setHours(0,0,0,0) === now.getTime();
-
-                    // 1. Calculate Nav & Sidebar Stats (Independent of filters or search)
+                    const iDate = item.date ? new Date(item.date) : null;
+                    if(iDate) iDate.setHours(0,0,0,0);
                     if (item.statusText === 'DELIVERED') {
                         counts.delivered++;
-                        // Month calculation
-                        if (itemDate && itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear()) {
-                            counts.monthTotal++;
-                        }
+                        if (iDate && iDate.getMonth() === today.getMonth()) counts.monthTotal++;
                     } else {
-                        // All non-delivered are globally pending
                         counts.globalPending++;
-                        if (isOverdue) counts.overdue++;
-                        if (isToday) counts.today++;
+                        if (item.approved) counts.dcPending++;
+                        if (iDate && iDate < today) counts.overdueCount++;
+                        if (iDate && iDate.getTime() === today.getTime()) counts.todayCount++;
                     }
-
                     if (item.statusText === 'NEW') counts.new++;
-                    if (item.statusText === 'PENDING') {
-                        counts.pending++;
-                        if (!item.approved) counts.unapproved++;
-                    }
+                    if (item.statusText === 'PENDING' && !item.approved) counts.unapproved++;
 
-                    // 2. Search & Filter Logic for Table Rendering
-                    const searchString = `${item.name} ${item.phone} ${item.exec} ${item.loc}`.toLowerCase();
-                    const matchesSearch = searchString.includes(searchQuery);
+                    const match = `${item.billNo} ${item.name} ${item.phone} ${item.exec} ${item.loc}`.toUpperCase().includes(globalSearchTerm);
+                    const filterMatch = (currentFilter === 'all') || (currentFilter === item.statusText) || (currentFilter === 'dc_pending' && item.approved && item.statusText !== 'DELIVERED') || (currentFilter === 'overdue' && iDate < today && item.statusText !== 'DELIVERED') || (currentFilter === 'today' && iDate && iDate.getTime() === today.getTime()) || (currentFilter === 'unapproved' && !item.approved && item.statusText === 'PENDING');
 
-                    let show = matchesSearch && ((currentFilter === 'all') || (currentFilter === item.statusText) ||
-                               (currentFilter === 'unapproved' && !item.approved && item.statusText === 'PENDING') ||
-                               (currentFilter === 'today' && isToday) || (currentFilter === 'overdue' && isOverdue));
-
-                    if(show) {
+                    if(match && filterMatch) {
                         const row = tbody.insertRow();
-                        if(item.id === selectedRowId) row.style.background = "rgba(59, 130, 246, 0.1)";
-                        if(currentUserRole !== 'Sagar (Cashier)') row.onclick = (e) => { if(e.target.tagName !== 'INPUT') selectRowForExport(item.id, item); };
-                        
-                        if(currentUserRole !== 'Suman (Supervisor)') {
-                            const cell = row.insertCell(); cell.style.textAlign = 'center';
-                            cell.innerHTML = item.statusText === 'PENDING' ? `<input type="checkbox" ${item.approved ? 'checked' : ''} onchange="toggleApprove('${item.id}', ${item.approved})">` : '-';
+                        if(currentUserRole === 'Admin' || currentUserRole === 'Sagar (Cashier)') {
+                            const c = row.insertCell();
+                            c.innerHTML = item.statusText === 'PENDING' ? `<input type="checkbox" ${item.approved ? 'checked' : ''} onchange="recordsRef.child('${item.id}').update({approved: !${item.approved}})">` : '-';
                         }
-
-                        let dateDisplay = (currentUserRole === 'Admin' || currentUserRole === 'Suman (Supervisor)') 
-                            ? `<input type="date" class="date-input-edit ${dateStatusClass}" value="${item.date}" onclick="this.showPicker(); event.stopPropagation();" onchange="updateRowDate('${item.id}', this.value)">`
-                            : `<span class="${dateStatusClass}">${item.date || '---'}</span>`;
-
-                        let statusDisabledClass = (currentUserRole === 'Sagar (Cashier)' || (currentUserRole === 'Suman (Supervisor)' && item.statusText !== 'NEW')) ? 'locked-btn' : '';
-
+                        let dateClass = '';
+                        if (iDate && item.statusText !== 'DELIVERED') {
+                            if (iDate < today) dateClass = 'date-passed';
+                            else if (iDate.getTime() === today.getTime() || iDate.getTime() === tomorrow.getTime()) dateClass = 'date-near';
+                            else if (iDate >= threeDaysOut) dateClass = 'date-upcoming';
+                        }
+                        const isDateEditable = (currentUserRole === 'Admin' || currentUserRole === 'Suman (Supervisor)');
                         row.innerHTML += `
-                            <td><b>${item.name}</b><br><small>${item.phone || '---'}</small></td>
-                            <td>${item.exec}</td><td>${item.loc}</td><td>${dateDisplay}</td>
-                            <td><span class="status-pill ${item.statusClass} ${statusDisabledClass}" onclick="cycleStatus('${item.id}', '${item.statusText}'); event.stopPropagation();">${item.statusText}</span></td>
-                            ${currentUserRole === 'Admin' ? `<td style="text-align:center"><button onclick="deleteRow('${item.id}'); event.stopPropagation();">🗑</button></td>` : ''}
+                            <td><b style="font-size:12px;">${item.name}</b><br><small style="color:var(--text-dim); font-weight:600;">${item.phone || '---'}</small></td>
+                            <td style="color:var(--accent-blue); font-weight:800;">#${item.billNo || '---'}</td>
+                            <td style="font-weight:700;">${item.qty || '---'}</td>
+                            <td>${item.exec}</td><td>${item.loc}</td>
+                            <td class="${dateClass}"><input type="date" class="table-date-input" value="${item.date}" ${!isDateEditable ? 'disabled' : ''} onchange="recordsRef.child('${item.id}').update({date: this.value})"></td>
+                            <td><span class="status-pill ${item.statusClass}" onclick="cycleStatus('${item.id}', '${item.statusText}')">${item.statusText}</span></td>
                         `;
+                        if(currentUserRole === 'Suman (Supervisor)') {
+                            const actionCell = row.insertCell();
+                            if(item.approved && item.statusText !== 'DELIVERED') actionCell.innerHTML = `<button class="inline-dc-btn" onclick="recordsRef.child('${item.id}').update({statusText:'DELIVERED', statusClass:'status-delivered', approved: true})">EXPORT DC</button>`;
+                            else actionCell.innerHTML = '-';
+                        }
+                        if(currentUserRole === 'Admin') row.insertCell().innerHTML = `<span class="delete-btn" onclick="deleteRecord('${item.id}')">🗑️</span>`;
                     }
                 });
 
-                // Update UI Counters
+                document.getElementById('unapproved-nav').classList.toggle('blink-urgent', counts.unapproved > 0);
+                document.getElementById('qc-nav').classList.toggle('blink-urgent', counts.new > 0);
+                if(document.getElementById('dc-pending-box').style.display !== 'none') document.getElementById('dc-pending-box').classList.toggle('blink-urgent', counts.dcPending > 0);
+                document.getElementById('count-unapproved').innerText = counts.unapproved;
+                document.getElementById('count-dc-pending').innerText = counts.dcPending;
                 document.getElementById('count-total').innerText = counts.total;
                 document.getElementById('count-qc').innerText = counts.new;
-                document.getElementById('count-pending').innerText = counts.pending;
+                document.getElementById('count-today').innerText = counts.todayCount;
+                document.getElementById('count-overdue').innerText = counts.overdueCount;
+                document.getElementById('count-pending').innerText = counts.pending || 0;
                 document.getElementById('count-delivered').innerText = counts.delivered;
-                document.getElementById('count-unapproved').innerText = counts.unapproved;
-                document.getElementById('count-today').innerText = counts.today;
-                document.getElementById('count-overdue').innerText = counts.overdue;
-                
-                // Final calculation display fix
                 document.getElementById('count-pending-total').innerText = counts.globalPending;
                 document.getElementById('count-month-total').innerText = counts.monthTotal;
-
-                // Blinking Logic
-                const qcNav = document.getElementById('qc-nav');
-                if(qcNav && (currentUserRole === 'Admin' || currentUserRole === 'Suman (Supervisor)')) {
-                    counts.new > 0 ? qcNav.classList.add('blink-qc') : qcNav.classList.remove('blink-qc');
-                }
-                const unNav = document.getElementById('unapproved-nav');
-                if(unNav) {
-                    counts.unapproved > 0 ? unNav.classList.add('blink-urgent') : unNav.classList.remove('blink-urgent');
-                }
-                const odNav = document.getElementById('overdue-nav');
-                if(odNav && currentUserRole !== 'Sagar (Cashier)') {
-                    counts.overdue > 0 ? odNav.classList.add('blink-urgent') : odNav.classList.remove('blink-urgent');
-                }
             });
         }
+
+        function clean(str) { return str.toUpperCase().replace(/\s+/g, ' ').trim(); }
 
         function addNewDelivery() {
-            const name = document.getElementById('custName').value;
-            if(!name) return;
+            const rawName = document.getElementById('custName').value;
+            const rawDate = document.getElementById('delDate').value;
+            if(!rawName || !rawDate) return alert("Missing Name or Date");
             recordsRef.push({ 
-                name, 
-                phone: document.getElementById('custPhone').value, 
-                exec: document.getElementById('execName').value, 
-                loc: document.getElementById('loc').value, 
-                date: document.getElementById('delDate').value, 
-                statusText: 'NEW', 
-                statusClass: 'status-new', 
-                approved: false 
+                name: clean(rawName), phone: document.getElementById('custPhone').value.trim(),
+                billNo: document.getElementById('billNo').value.trim(), qty: document.getElementById('qty').value.trim(), 
+                exec: clean(document.getElementById('execName').value), loc: clean(document.getElementById('loc').value), 
+                date: rawDate, statusText: 'NEW', statusClass: 'status-new', approved: false 
             });
-            ['custName','custPhone','execName','loc','delDate'].forEach(id => document.getElementById(id).value = '');
+            ['billNo','custPhone','qty','custName','execName','loc'].forEach(id => document.getElementById(id).value = '');
+            setDefaultDate();
         }
 
+        function deleteRecord(id) { if(confirm("Delete this entry?")) recordsRef.child(id).remove(); }
+        
         function cycleStatus(id, current) {
+            if(currentUserRole === 'Sagar (Cashier)') return;
+            if(currentUserRole === 'Suman (Supervisor)') {
+                if(current === 'NEW') recordsRef.child(id).update({ statusText: 'PENDING', statusClass: 'status-pending' });
+                return;
+            }
             const states = {'NEW': {t:'PENDING', c:'status-pending'}, 'PENDING': {t:'DELIVERED', c:'status-delivered'}, 'DELIVERED': {t:'NEW', c:'status-new'}};
-            const next = states[current];
-            recordsRef.child(id).update({ statusText: next.t, statusClass: next.c, approved: (next.t === 'DELIVERED') });
+            const n = states[current];
+            recordsRef.child(id).update({ statusText: n.t, statusClass: n.c, approved: (n.t === 'DELIVERED') });
         }
 
-        function toggleApprove(id, current) { recordsRef.child(id).update({ approved: !current }); }
-        function updateRowDate(id, newDate) { recordsRef.child(id).update({ date: newDate }); }
-        function deleteRow(id) { if(confirm("Delete record?")) recordsRef.child(id).remove(); }
-
-        function executeExport() {
-            if(!selectedRowId) return;
-            recordsRef.child(selectedRowId).once('value', (snap) => {
-                const item = snap.val();
-                recordsRef.child(selectedRowId).update({ statusText: 'DELIVERED', statusClass: 'status-delivered' });
-                window.open(`https://chetansdesire-design.github.io/UC-Delivery-Dispatch-/?name=${encodeURIComponent(item.name)}&phone=${item.phone || ''}`, '_blank');
-            });
-        }
-
-        function selectRowForExport(id, item) {
-            selectedRowId = id;
-            const btn = document.getElementById('dc-export-btn');
-            if(currentUserRole === 'Admin') btn.classList.remove('locked');
-            else if(currentUserRole === 'Suman (Supervisor)') (item.approved) ? btn.classList.remove('locked') : btn.classList.add('locked');
-            loadData();
-        }
-
-        function setFilter(type, el) {
-            currentFilter = type;
+        function setFilter(type, el) { 
+            currentFilter = type; 
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('selected'));
+            document.querySelectorAll('.stat-box').forEach(i => i.classList.remove('selected'));
             el.classList.add('selected');
-            loadData();
+            loadData(); 
         }
     </script>
 </body>
