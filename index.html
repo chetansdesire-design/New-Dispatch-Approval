@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Urban Casa | Dispatch v16.10</title>
+    <title>Urban Casa | Dispatch v16.14</title>
     
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -13,7 +13,7 @@
             --bg-main: #f1f5f9; --sidebar-bg: #1e293b; --card-bg: #ffffff;
             --accent-blue: #2563eb; --text-main: #0f172a; --text-dim: #64748b;
             --danger: #dc2626; --success: #059669; --border-color: #e2e8f0;
-            --warning: #f59e0b;
+            --warning: #f59e0b; --tomorrow: #60a5fa;
         }
         
         body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; font-size: 11px; }
@@ -64,7 +64,7 @@
         .date-input { border:none; font-size:10px; background:transparent; font-weight:700; cursor:pointer; width:90px; }
         .date-overdue { color: var(--danger); }
         .date-today { color: var(--warning); }
-        .date-upcoming { color: var(--accent-blue); }
+        .date-tomorrow { color: var(--tomorrow); }
         .date-finished { color: var(--success); }
     </style>
 </head>
@@ -82,7 +82,7 @@
 
     <div class="sidebar">
         <div style="font-weight:900; font-size:1.1rem; margin-bottom:20px;">URBAN CASA</div>
-        <div id="active-user-tag" style="font-size:9px; background:rgba(255,255,255,0.1); padding:8px; border-radius:6px; margin-bottom:20px; text-align:center;">---</div>
+        <div id="active-user-tag" style="font-size:9px; background:rgba(255,255,255,0.1); padding:8px; border-radius:6px; margin-bottom:15px; text-align:center;">---</div>
         
         <div class="nav-item selected" onclick="setFilter('all', this)">All Shipments <span class="count" id="count-total">0</span></div>
         <div id="qc-nav" class="nav-item" onclick="setFilter('NEW', this)">QC Pending <span class="count" id="count-qc">0</span></div>
@@ -92,16 +92,33 @@
         
         <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 10px 0;"></div>
 
-        <div class="nav-item" onclick="setFilter('today', this)" style="color: #4ade80;">Today Shipments <span class="count" id="count-today-sidebar" style="background:#059669; color:white;">0</span></div>
-        <div class="nav-item" onclick="setFilter('overdue', this)" style="color: #f87171;">Overdue Shipments <span class="count" id="count-overdue-sidebar" style="background:#dc2626; color:white;">0</span></div>
+        <div class="nav-item" onclick="setFilter('today', this)" style="color: #4ade80;">Today <span class="count" id="count-today-sidebar" style="background:#059669; color:white;">0</span></div>
+        <div class="nav-item" onclick="setFilter('tomorrow', this)" style="color: #60a5fa;">Tomorrow <span class="count" id="count-tomorrow-sidebar" style="background:#2563eb; color:white;">0</span></div>
+        <div class="nav-item" onclick="setFilter('overdue', this)" style="color: #f87171;">Overdue <span class="count" id="count-overdue-sidebar" style="background:#dc2626; color:white;">0</span></div>
 
-        <div style="margin-top: auto; padding-top: 15px;">
+        <div style="margin-top: auto; padding-top: 10px;">
             <div id="total-pending-box" class="stat-box">
                 <label style="font-size:8px; display:block;">PAYMENT PENDING</label>
                 <div class="stat-count" id="sidebar-amt-pending">₹0</div>
             </div>
-            <div id="dc-pending-box" class="stat-box" onclick="setFilter('dc_pending', this)" style="display:none; cursor:pointer;"><label style="font-size:8px;">DC PENDING</label><div class="stat-count" id="count-dc-pending">0</div></div>
-            <div class="stat-box"><label style="font-size:8px; color:#10b981">MONTH TOTAL</label><div class="stat-count" id="count-month-total" style="color:#10b981">0</div></div>
+            
+            <div id="dc-pending-box" class="stat-box" onclick="setFilter('dc_pending', this)" style="cursor:pointer;">
+                <label style="font-size:8px;">DC PENDING</label>
+                <div class="stat-count" id="count-dc-pending">0</div>
+            </div>
+
+            <div class="stat-box">
+                <label style="font-size:8px; color:#10b981">MONTH TOTAL</label>
+                <div class="stat-count" id="count-month-total" style="color:#10b981">0</div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 5px;">
+                <button class="user-btn" style="background:#475569; font-size:7px; margin:0; padding:6px;" onclick="backupData()">💾 BKUP</button>
+                <button class="user-btn" style="background:#475569; font-size:7px; margin:0; padding:6px;" onclick="document.getElementById('restoreFile').click()">📂 RSTR</button>
+                <button class="user-btn" id="clear-btn" style="background:#b91c1c; font-size:7px; margin:0; grid-column: span 2; padding:4px; display:none;" onclick="archiveDelivered()">🧹 CLEAR DELIVERED</button>
+            </div>
+            <input type="file" id="restoreFile" style="display:none" onchange="restoreData(event)" accept=".json">
+
             <button class="user-btn" style="background:transparent; border:1px solid rgba(255,255,255,0.2); font-size:9px;" onclick="location.reload()">LOGOUT</button>
         </div>
     </div>
@@ -166,14 +183,39 @@
             document.getElementById('pay-head').style.display = (isFin || isSuman) ? 'table-cell' : 'none';
             document.getElementById('action-head').style.display = (isAdmin || isSuman) ? 'table-cell' : 'none';
             document.getElementById('delete-head').style.display = isAdmin ? 'table-cell' : 'none';
-            document.getElementById('dc-pending-box').style.display = (isAdmin || isSuman) ? 'block' : 'none';
             document.getElementById('unapproved-nav').style.display = isSuman ? 'none' : 'flex';
+            document.getElementById('clear-btn').style.display = isAdmin ? 'block' : 'none';
             document.getElementById('delDate').value = new Date().toISOString().split('T')[0];
             loadData();
         }
 
+        function backupData() {
+            recordsRef.once('value', (snap) => {
+                const data = JSON.stringify(snap.val(), null, 2);
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(new Blob([data], {type: 'application/json'}));
+                a.download = `UrbanCasa_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+            });
+        }
+
+        function restoreData(event) {
+            if (!confirm("Overwrite data?")) return;
+            const reader = new FileReader();
+            reader.onload = (e) => recordsRef.set(JSON.parse(e.target.result), (err) => err ? alert("Err") : alert("OK"));
+            reader.readAsText(event.target.files[0]);
+        }
+
+        function archiveDelivered() {
+            if (!confirm("Delete all DELIVERED?")) return;
+            recordsRef.once('value', (snap) => {
+                const d = snap.val();
+                for (let id in d) if (d[id].statusText === 'DELIVERED') recordsRef.child(id).remove();
+            });
+        }
+
         function toggleSearch() {
-            const term = prompt("Search Name, Bill or Area:", globalSearchTerm);
+            const term = prompt("Search:", globalSearchTerm);
             if (term !== null) { globalSearchTerm = term.toUpperCase(); loadData(); }
         }
 
@@ -184,29 +226,30 @@
                 const tbody = document.querySelector('#dispatchTable tbody');
                 tbody.innerHTML = '';
                 const today = new Date(); today.setHours(0,0,0,0);
-                const currentMonth = today.getMonth();
-                const currentYear = today.getFullYear();
+                const tomorrow = new Date(); tomorrow.setDate(today.getDate() + 1); tomorrow.setHours(0,0,0,0);
+                const curMonth = today.getMonth(), curYear = today.getFullYear();
 
-                let counts = { total: globalData.length, new: 0, unapproved: 0, pending: 0, delivered: 0, dcPending: 0, overdue: 0, todayCount: 0, totalAmtPending: 0, monthTotal: 0 };
+                let counts = { total: globalData.length, new: 0, unapproved: 0, pending: 0, delivered: 0, dc: 0, overdue: 0, today: 0, tomorrow: 0, month: 0, amt: 0 };
 
                 globalData.forEach((item) => {
                     const itemDate = new Date(item.date); itemDate.setHours(0,0,0,0);
-                    if (item.payPending === 'YES' && !item.payReceived) counts.totalAmtPending += parseFloat(item.payAmount || 0);
+                    if (item.payPending === 'YES' && !item.payReceived) counts.amt += parseFloat(item.payAmount || 0);
 
                     if (item.statusText === 'NEW') counts.new++;
                     if (item.statusText === 'PENDING') {
-                        if (item.approved) counts.pending++;
-                        else counts.unapproved++;
+                        if (item.approved) { counts.pending++; counts.dc++; }
+                        else { counts.unapproved++; }
                     }
-                    if (item.statusText === 'DELIVERED') counts.delivered++;
+                    if (item.statusText === 'DELIVERED') {
+                        counts.delivered++;
+                        if (itemDate.getMonth() === curMonth && itemDate.getFullYear() === curYear) counts.month++;
+                    }
 
                     let dateClass = 'date-upcoming';
-                    if (item.statusText === 'DELIVERED') {
-                        dateClass = 'date-finished';
-                        if (itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear) { counts.monthTotal++; }
-                    } else {
-                        if (item.approved) counts.dcPending++;
-                        if (itemDate.getTime() === today.getTime()) { counts.todayCount++; dateClass = 'date-today'; }
+                    if (item.statusText === 'DELIVERED') dateClass = 'date-finished';
+                    else {
+                        if (itemDate.getTime() === today.getTime()) { counts.today++; dateClass = 'date-today'; }
+                        else if (itemDate.getTime() === tomorrow.getTime()) { counts.tomorrow++; dateClass = 'date-tomorrow'; }
                         else if (itemDate.getTime() < today.getTime()) { counts.overdue++; dateClass = 'date-overdue'; }
                     }
 
@@ -216,24 +259,22 @@
                                           (currentFilter === 'unapproved' && !item.approved && item.statusText === 'PENDING') ||
                                           (currentFilter === 'dc_pending' && item.approved && item.statusText !== 'DELIVERED') || 
                                           (currentFilter === 'today' && itemDate.getTime() === today.getTime() && item.statusText !== 'DELIVERED') || 
+                                          (currentFilter === 'tomorrow' && itemDate.getTime() === tomorrow.getTime() && item.statusText !== 'DELIVERED') || 
                                           (currentFilter === 'overdue' && itemDate.getTime() < today.getTime() && item.statusText !== 'DELIVERED');
                         
                         if(filterMatch) {
                             const row = tbody.insertRow();
                             const isFin = (currentUserRole === 'Admin' || currentUserRole === 'Sagar (Cashier)');
-                            
                             if(isFin || currentUserRole === 'Suman (Supervisor)') {
                                 row.insertCell().style.display = isFin ? 'table-cell' : 'none';
                                 if(isFin) row.cells[0].innerHTML = item.statusText === 'PENDING' ? `<input type="checkbox" ${item.approved ? 'checked' : ''} onchange="recordsRef.child('${item.id}').update({approved: !${item.approved}})">` : '-';
-                                
                                 let payHtml = '';
-                                const showPay = (currentUserRole === 'Admin') || (currentUserRole === 'Sagar (Cashier)' && item.statusText === 'DELIVERED');
+                                const canPay = (currentUserRole === 'Admin') || (currentUserRole === 'Sagar (Cashier)' && item.statusText === 'DELIVERED');
                                 if (item.payPending === 'NO') payHtml = `<span class="pay-pill pay-no">NO</span>`;
                                 else if (item.payReceived) payHtml = `<span class="pay-pill pay-done" onclick="${currentUserRole === 'Admin' ? `togglePay('${item.id}', true)` : ''}">PAID</span>`;
-                                else payHtml = `<span class="pay-pill pay-yes ${!item.payReceived ? 'blink-pay-col' : ''}" onclick="${showPay ? `togglePay('${item.id}', false)` : ''}">YES - ₹${item.payAmount}</span>`;
+                                else payHtml = `<span class="pay-pill pay-yes ${!item.payReceived ? 'blink-pay-col' : ''}" onclick="${canPay ? `togglePay('${item.id}', false)` : ''}">YES - ₹${item.payAmount}</span>`;
                                 row.insertCell().innerHTML = payHtml;
                             }
-                            
                             row.innerHTML += `
                                 <td><b style="${item.payReceived ? 'color:var(--success)' : ''}">${item.name}</b><br><a href="https://wa.me/91${item.phone}" target="_blank" style="color:var(--accent-blue); text-decoration:none; font-size:9px;">📱 ${item.phone || '---'}</a></td>
                                 <td style="font-weight:700;">${item.billNo || '-'}</td>
@@ -249,29 +290,29 @@
                     }
                 });
 
-                document.getElementById('sidebar-amt-pending').innerText = `₹${counts.totalAmtPending}`;
-                document.getElementById('count-month-total').innerText = counts.monthTotal;
+                document.getElementById('sidebar-amt-pending').innerText = `₹${counts.amt}`;
+                document.getElementById('count-month-total').innerText = counts.month;
                 document.getElementById('count-total').innerText = counts.total;
                 document.getElementById('count-qc').innerText = counts.new;
                 document.getElementById('count-unapproved').innerText = counts.unapproved;
                 document.getElementById('count-pending').innerText = counts.pending;
                 document.getElementById('count-delivered').innerText = counts.delivered;
-                document.getElementById('count-today-sidebar').innerText = counts.todayCount;
+                document.getElementById('count-today-sidebar').innerText = counts.today;
+                document.getElementById('count-tomorrow-sidebar').innerText = counts.tomorrow;
                 document.getElementById('count-overdue-sidebar').innerText = counts.overdue;
-                document.getElementById('count-dc-pending').innerText = counts.dcPending;
+                document.getElementById('count-dc-pending').innerText = counts.dc;
 
-                document.getElementById('total-pending-box').classList.toggle('blink-urgent', counts.totalAmtPending > 0);
+                document.getElementById('total-pending-box').classList.toggle('blink-urgent', counts.amt > 0);
                 document.getElementById('unapproved-nav').classList.toggle('blink-urgent', counts.unapproved > 0);
                 document.getElementById('qc-nav').classList.toggle('blink-urgent', counts.new > 0);
-                if(currentUserRole !== 'Sagar (Cashier)') document.getElementById('dc-pending-box').classList.toggle('blink-urgent', counts.dcPending > 0);
+                document.getElementById('dc-pending-box').classList.toggle('blink-urgent', counts.dc > 0);
             });
         }
 
-        function togglePay(id, current) { recordsRef.child(id).update({ payReceived: !current }); }
-        
+        function togglePay(id, cur) { recordsRef.child(id).update({ payReceived: !cur }); }
         function cycleStatus(id, cur) { 
-            const states = { 'NEW': { t: 'PENDING', c: 'status-pending', app: false }, 'PENDING': { t: 'DELIVERED', c: 'status-delivered', app: true }, 'DELIVERED': { t: 'NEW', c: 'status-new', app: false } }; 
-            const n = states[cur]; recordsRef.child(id).update({ statusText: n.t, statusClass: n.c, approved: n.app }); 
+            const s = { 'NEW': { t: 'PENDING', c: 'status-pending', a: false }, 'PENDING': { t: 'DELIVERED', c: 'status-delivered', a: true }, 'DELIVERED': { t: 'NEW', c: 'status-new', a: false } }; 
+            const n = s[cur]; recordsRef.child(id).update({ statusText: n.t, statusClass: n.c, approved: n.a }); 
         }
 
         function exportDC(id) {
@@ -279,9 +320,9 @@
             const todayStr = new Date().toLocaleDateString('en-GB'); 
             const billDateStr = new Date(item.date).toLocaleDateString('en-GB');
             const userName = currentUserRole.split(' ')[0];
-            let payStatusText = item.payReceived ? "PAID ✅" : (item.payPending === "YES" ? `PENDING (₹${item.payAmount}) 🚨` : "COD");
+            const payDueAmt = (item.payPending === "YES" && !item.payReceived) ? item.payAmount : 0;
 
-            const text = `URBAN CASA DISPATCH\n--------------------------\nDispatch Date : ${todayStr}\nBill Date: ${billDateStr}\nBill No: ${item.billNo || '-'}\nCustomer: ${item.name}\nArea: ${item.loc}\nQty: ${item.qty || '0'}\nPayment Status: ${payStatusText}\nQC Checked By: ${userName}\n--------------------------\n📦 Status: Dispatched`;
+            const text = `URBAN CASA DISPATCH\n------------------------------------------\n📅Dispatch Date: ${todayStr}\n\n📅Bill Date: ${billDateStr}\n\n🧾Bill No: ${item.billNo || '-'}\n\n👤Customer: ${item.name}\n\n👤Sales Executive: ${item.exec || '-'}\n\n📍Location: ${item.loc || '-'}\n\n📒Qty: ${item.qty || '0'}\n\n💰Payment Due: ₹${payDueAmt}\n\n✅QC Checked By: ${userName}\n------------------------------------------\n🚚Status: Dispatched`;
             
             navigator.clipboard.writeText(text).then(() => {
                 recordsRef.child(id).update({ statusText: 'DELIVERED', statusClass: 'status-delivered', approved: true });
