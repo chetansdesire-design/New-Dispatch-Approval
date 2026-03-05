@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Urban Casa | Dispatch & Service v16.36</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-main: #f1f5f9; --sidebar-bg: #1e293b; --card-bg: #ffffff;
+            --accent-blue: #2563eb; --text-main: #0f172a; --text-dim: #64748b;
+            --danger: #dc2626; --success: #059669; --border-color: #e2e8f0;
+            --warning: #f59e0b; --tomorrow: #60a5fa;
+        }
+        
+        body { margin: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; font-size: 11px; }
+        
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-main); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: var(--card-bg); padding: 30px; border-radius: 16px; text-align: center; border: 1px solid var(--border-color); width: 280px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .user-btn { width: 100%; padding: 10px; margin: 5px 0; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; color: white; text-transform: uppercase; font-size: 10px; }
+        .pass-input { width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; text-align: center; font-size: 14px; letter-spacing: 2px; }
+
+        .sidebar { width: 195px; background-color: var(--sidebar-bg); padding: 20px 15px; display: flex; flex-direction: column; color: white; }
+        .nav-item { padding: 10px 12px; border-radius: 8px; margin-bottom: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #cbd5e1; }
+        .nav-item:hover { background: rgba(255,255,255,0.05); }
+        .nav-item.selected { background: var(--accent-blue); color: white; }
+        .count { background: rgba(0,0,0,0.2); padding: 2px 7px; border-radius: 10px; font-size: 9px; }
+        
+        @keyframes urgent-pulse { 0%, 100% { background: rgba(239, 68, 68, 0.2); color: #f87171; } 50% { background: var(--danger); color: white; } }
+        .blink-urgent { animation: urgent-pulse 1s infinite !important; }
+
+        @keyframes col-pulse { 0%, 100% { background: #fee2e2; } 50% { background: #fecaca; } }
+        .blink-pay-col { animation: col-pulse 1.5s infinite ease-in-out; }
+
+        .main-content { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; }
+        .entry-container { background: var(--card-bg); padding: 10px; border-radius: 10px; margin-bottom: 15px; border: 1px solid var(--border-color); flex-shrink: 0; }
+        .input-group { display: flex; gap: 6px; align-items: flex-end; flex-wrap: nowrap; width: 100%; }
+        .field { display: flex; flex-direction: column; gap: 3px; }
+        .field label { font-size: 8px; color: var(--text-dim); text-transform: uppercase; font-weight: 700; }
+        .field input, .field select { background: #f8fafc; border: 1px solid #e2e8f0; padding: 7px; border-radius: 5px; font-size: 10px; outline: none; width: 100%; box-sizing: border-box; }
+        
+        .add-btn { background: var(--accent-blue); color: white; border: none; border-radius: 5px; padding: 0 15px; height: 32px; font-weight: 700; cursor: pointer; font-size: 10px; }
+
+        table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border-color); }
+        th { text-align: left; padding: 12px 10px; font-size: 9px; color: var(--text-dim); background: #f8fafc; border-bottom: 1px solid var(--border-color); text-transform: uppercase; }
+        td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        
+        .pay-pill { padding: 4px 8px; border-radius: 4px; font-size: 9px; font-weight: 800; text-align: center; cursor: pointer; display: inline-block; min-width: 65px; border: 1px solid transparent; }
+        .pay-yes { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+        .pay-no { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+        .pay-done { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+
+        .status-pill { padding: 5px 0; border-radius: 5px; font-size: 9px; font-weight: 700; display: inline-block; width: 85px; text-align: center; cursor: pointer; text-transform: uppercase; border: 1px solid transparent; }
+        .status-new { background: #ffedd5; color: #9a3412; border-color: #fed7aa; } 
+        .status-pending { background: #ef4444; color: #ffffff; border-color: #dc2626; font-weight: 800; } 
+        .status-delivered { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+
+        .stat-box { border-radius: 8px; padding: 10px; margin-bottom: 8px; text-align: center; background: rgba(255,255,255,0.05); }
+        .stat-count { font-size: 18px; font-weight: 800; }
+        
+        .date-input { border:none; font-size:10px; background:transparent; font-weight:700; cursor:pointer; width:90px; }
+        .date-overdue { color: var(--danger); }
+        .date-today { color: var(--warning); }
+        .date-tomorrow { color: var(--tomorrow); }
+        .date-finished { color: var(--success); }
+    </style>
+</head>
+<body>
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2 style="color:var(--accent-blue); margin-bottom:5px;">URBAN CASA</h2>
+            <p style="font-size:9px; color:var(--text-dim); margin-bottom:20px;">VER 16.36 - AUTHENTICATION</p>
+            <input type="password" id="passField" class="pass-input" placeholder="••••••••">
+            <button class="user-btn" style="background:var(--accent-blue);" onclick="login('Admin')">ADMIN</button>
+            <button class="user-btn" style="background:#7c3aed;" onclick="login('Sagar (Cashier)')">SAGAR (CASHIER)</button>
+            <button class="user-btn" style="background:#059669;" onclick="login('Suman (Supervisor)')">SUMAN (SUPERVISOR)</button>
+            <button class="user-btn" style="background:#f59e0b;" onclick="login('Shiva (Service)')">SHIVA (SERVICE)</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div style="font-weight:900; font-size:1.1rem; margin-bottom:10px;">URBAN CASA</div>
+        <div id="active-user-tag" style="font-size:9px; background:rgba(255,255,255,0.1); padding:8px; border-radius:6px; margin-bottom:10px; text-align:center;">---</div>
+        
+        <div style="margin-bottom: 10px;">
+            <input type="text" id="sidebar-search" placeholder="🔍 Search Text..." 
+                onkeyup="globalSearchTerm = this.value.toUpperCase(); loadData();"
+                style="width: 100%; padding: 8px; border-radius: 6px; border: none; background: rgba(255,255,255,0.1); color: white; font-size: 10px; outline: none; box-sizing: border-box;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 4px;">
+            <div class="nav-item selected" onclick="setFilter('all', this)" style="padding: 10px 5px; justify-content: center; gap: 4px; font-size: 9px;">
+                ACTIVE <span class="count" id="count-total">0</span>
+            </div>
+            <div class="nav-item" id="open-nav" onclick="setFilter('not_delivered', this)" style="padding: 10px 5px; justify-content: center; gap: 4px; font-size: 9px; border: 1px solid rgba(255,255,255,0.1);">
+                OPEN <span class="count" id="count-not-delivered" style="background:var(--warning); color:white;">0</span>
+            </div>
+        </div>
+
+        <div id="complaints-nav" class="nav-item" onclick="toggleComplaintsPanel()" style="display:none; color: #f87171;">
+            Complaints <span class="count" id="count-complaints">0</span>
+        </div>
+        <div id="qc-nav" class="nav-item" onclick="setFilter('NEW', this)">QC Pending <span class="count" id="count-qc">0</span></div>
+        <div id="unapproved-nav" class="nav-item" onclick="setFilter('unapproved', this)">UnApproved <span class="count" id="count-unapproved">0</span></div>
+        <div id="pending-nav" class="nav-item" onclick="setFilter('PENDING', this)">Pending (Appr) <span class="count" id="count-pending">0</span></div>
+        <div id="delivered-nav" class="nav-item" onclick="setFilter('DELIVERED', this)">Delivered <span class="count" id="count-delivered">0</span></div>
+        
+        <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 10px 0;"></div>
+
+        <div class="nav-item" onclick="setFilter('today', this)" style="color: #4ade80;">Today <span class="count" id="count-today-sidebar" style="background:#059669; color:white;">0</span></div>
+        <div class="nav-item" onclick="setFilter('tomorrow', this)" style="color: #60a5fa;">Tomorrow <span class="count" id="count-tomorrow-sidebar" style="background:#2563eb; color:white;">0</span></div>
+        <div class="nav-item" onclick="setFilter('overdue', this)" style="color: #f87171;">Overdue <span class="count" id="count-overdue-sidebar" style="background:#dc2626; color:white;">0</span></div>
+
+        <div style="margin-top: auto; padding-top: 10px;">
+            <div id="total-pending-box" class="stat-box">
+                <label style="font-size:8px; display:block;">PAYMENT PENDING</label>
+                <div class="stat-count" id="sidebar-amt-pending">₹0</div>
+            </div>
+            
+            <div style="display: flex; gap: 4px; margin-bottom: 8px;">
+                <div id="dc-pending-box" class="stat-box" onclick="setFilter('dc_pending', this)" style="cursor:pointer; flex: 1; margin-bottom: 0;">
+                    <label style="font-size:8px;">DC PENDING</label>
+                    <div class="stat-count" id="count-dc-pending" style="font-size:14px;">0</div>
+                </div>
+                <div class="stat-box" style="flex: 1; margin-bottom: 0;">
+                    <label style="font-size:8px; color:#10b981">MONTH TOTAL</label>
+                    <div class="stat-count" id="count-month-total" style="color:#10b981; font-size:14px;">0</div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 5px;">
+                <button class="user-btn" style="background:#475569; font-size:7px; margin:0; padding:6px;" onclick="backupData()">💾 BKUP</button>
+                <button class="user-btn" style="background:#475569; font-size:7px; margin:0; padding:6px;" onclick="document.getElementById('restoreFile').click()">📂 RSTR</button>
+            </div>
+            <input type="file" id="restoreFile" style="display:none" onchange="restoreData(event)" accept=".json">
+            <button class="user-btn" style="background:transparent; border:1px solid rgba(255,255,255,0.2); font-size:9px;" onclick="location.reload()">LOGOUT</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="entry-container" id="entry-bar" style="display:none;">
+            <div class="input-group">
+                <div class="field" style="flex: 2;"><label>Customer Name</label><input type="text" id="custName"></div>
+                <div class="field" style="flex: 1.2;"><label>Mobile</label><input type="text" id="custPhone"></div>
+                <div class="field" style="flex: 0.8;"><label>Bill No</label><input type="text" id="billNo"></div>
+                <div class="field" style="flex: 0.5;"><label>Qty</label><input type="text" id="qty"></div>
+                <div class="field" style="flex: 1;"><label>Exec</label><input type="text" id="execName"></div>
+                <div class="field" style="flex: 1.2;"><label>Area</label><input type="text" id="loc"></div>
+                <div class="field" style="flex: 1.3;"><label>Bill Date</label><input type="date" id="delDate" onclick="this.showPicker()"></div>
+                <div class="field" style="flex: 0.6;"><label>Pay</label><select id="payPending" onchange="document.getElementById('payAmount').disabled = (this.value === 'NO');"><option value="NO">NO</option><option value="YES">YES</option></select></div>
+                <div class="field" style="flex: 0.8;"><label>Amt</label><input type="number" id="payAmount" disabled></div>
+                <button class="add-btn" onclick="addNewDelivery()">+ Add</button>
+            </div>
+        </div>
+
+        <div id="complaints-panel" style="display:none; flex-direction: column; gap: 15px;">
+            <div class="entry-container" id="comp-entry-bar">
+                <div class="input-group">
+                    <div class="field" style="flex: 1.5;"><label>Customer Name</label><input type="text" id="compName"></div>
+                    <div class="field" style="flex: 1;"><label>Mobile</label><input type="text" id="compPhone"></div>
+                    <div class="field" style="flex: 1.5;"><label>Location</label><input type="text" id="compLoc"></div>
+                    <div class="field" style="flex: 2;"><label>Complaint Details</label><input type="text" id="compDetails"></div>
+                    <div class="field" style="flex: 1.3;"><label>Date</label><input type="date" id="compDate" onclick="this.showPicker()"></div>
+                    <button class="add-btn" style="background:var(--danger)" onclick="addNewComplaint()">+ Log Complaint</button>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin:0; font-size:12px; color:var(--text-dim);">SERVICE QUEUE</h3>
+                <input type="text" id="compSearch" placeholder="🔍 Search Text..." onkeyup="loadComplaints()" style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 10px; width: 220px;">
+            </div>
+            <table id="complaintsTable">
+                <thead><tr><th style="width:75px;">Date</th><th>Customer / Contact</th><th>Location</th><th>Details</th><th style="width:115px;">Status / Log</th><th id="comp-del-head" style="width:25px;"></th></tr></thead>
+                <tbody></tbody>
+            </table>
+            <button class="add-btn" style="background:#64748b; width: fit-content;" onclick="toggleComplaintsPanel()">Back to Dispatch</button>
+        </div>
+
+        <table id="dispatchTable">
+            <thead>
+                <tr>
+                    <th id="approve-head" style="display:none; width:30px;">Appr</th>
+                    <th id="pay-head" style="display:none; width:100px;">Pay Status</th>
+                    <th>Customer / Mobile</th>
+                    <th style="width:65px;">Bill</th>
+                    <th style="width:35px;">Qty</th>
+                    <th style="width:75px;">Exec</th>
+                    <th>Area</th>
+                    <th style="width:95px;">Bill Date</th> 
+                    <th style="width:85px;">Status</th>
+                    <th id="action-head" style="display:none; width:85px;">Action</th>
+                    <th id="delete-head" style="display:none; width:20px;"></th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        const firebaseConfig = { databaseURL: "https://new-dispatch-approval-default-rtdb.firebaseio.com/" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const recordsRef = db.ref('dispatch_records');
+        const complaintsRef = db.ref('complaints_records');
+
+        let currentUserRole = '', currentFilter = 'all', globalSearchTerm = '', globalData = [];
+        const PASSWORDS = { 'Admin': 'admin123', 'Sagar (Cashier)': 'sagar786', 'Suman (Supervisor)': 'suman2024', 'Shiva (Service)': 'shiva99' };
+
+        // Unified Timestamp Helper: USER @ DD/MM HH:MM
+        function getLogInfo() {
+            const now = new Date();
+            const dateStr = now.getDate() + '/' + (now.getMonth() + 1);
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            const user = currentUserRole.split(' ')[0].toUpperCase();
+            return `${user} @ ${dateStr} ${timeStr}`;
+        }
+
+        function login(role) {
+            if (document.getElementById('passField').value !== PASSWORDS[role]) return alert("Wrong Password");
+            currentUserRole = role;
+            document.getElementById('login-overlay').style.display = 'none';
+            document.getElementById('active-user-tag').innerText = role;
+            const isFin = (role === 'Admin' || role === 'Sagar (Cashier)'), isShiva = (role === 'Shiva (Service)'), isSuman = (role === 'Suman (Supervisor)');
+            document.getElementById('complaints-nav').style.display = (role === 'Admin' || role === 'Sagar (Cashier)' || isShiva) ? 'flex' : 'none';
+            document.getElementById('qc-nav').style.display = (role === 'Sagar (Cashier)') ? 'none' : 'flex';
+            document.getElementById('entry-bar').style.display = (isSuman || isShiva) ? 'none' : 'flex';
+            document.getElementById('comp-entry-bar').style.display = isShiva ? 'none' : 'block';
+            document.getElementById('approve-head').style.display = isFin ? 'table-cell' : 'none';
+            document.getElementById('pay-head').style.display = (isFin || isSuman) ? 'table-cell' : 'none';
+            document.getElementById('action-head').style.display = (role === 'Admin' || isSuman) ? 'table-cell' : 'none';
+            document.getElementById('delete-head').style.display = (role === 'Admin') ? 'table-cell' : 'none';
+            document.getElementById('unapproved-nav').style.display = (isSuman || isShiva) ? 'none' : 'flex';
+            document.getElementById('delDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('compDate').value = new Date().toISOString().split('T')[0];
+            loadData(); loadComplaints();
+        }
+
+        function toggleComplaintsPanel() {
+            const dispTable = document.getElementById('dispatchTable'), entryBar = document.getElementById('entry-bar'), compPanel = document.getElementById('complaints-panel');
+            if (compPanel.style.display === 'none') { compPanel.style.display = 'flex'; dispTable.style.display = 'none'; entryBar.style.display = 'none'; }
+            else { compPanel.style.display = 'none'; dispTable.style.display = 'table'; if (currentUserRole !== 'Shiva (Service)' && currentUserRole !== 'Suman (Supervisor)') entryBar.style.display = 'flex'; }
+        }
+
+        function loadData() {
+            recordsRef.on('value', (snapshot) => {
+                const rawData = snapshot.val() || {};
+                globalData = Object.keys(rawData).map(key => ({ ...rawData[key], id: key })).reverse();
+                const tbody = document.querySelector('#dispatchTable tbody'); tbody.innerHTML = '';
+                const today = new Date(); today.setHours(0,0,0,0);
+                const tomorrowDate = new Date(today); tomorrowDate.setDate(today.getDate() + 1);
+                let counts = { total: 0, not_delivered: 0, qc: 0, unapproved: 0, pending: 0, delivered: 0, "dc-pending": 0, overdue: 0, today: 0, tomorrow: 0, "month-total": 0, amt: 0 };
+
+                globalData.forEach((item) => {
+                    const itemDate = new Date(item.date); itemDate.setHours(0,0,0,0);
+                    const isFinished = (item.statusText === 'DELIVERED'); 
+
+                    if (!isFinished) {
+                        counts.total++; counts.not_delivered++;
+                        if (item.payPending === 'YES' && !item.payReceived) counts.amt += parseFloat(item.payAmount || 0);
+                        if (item.statusText === 'NEW') counts.qc++;
+                        if (item.statusText === 'PENDING') { if (item.approved) { counts.pending++; counts["dc-pending"]++; } else { counts.unapproved++; } }
+                        if (itemDate.getTime() === today.getTime()) counts.today++;
+                        else if (itemDate.getTime() === tomorrowDate.getTime()) counts.tomorrow++;
+                        else if (itemDate.getTime() < today.getTime()) counts.overdue++;
+                    } else {
+                        counts.delivered++; 
+                        if (itemDate.getMonth() === today.getMonth() && itemDate.getFullYear() === today.getFullYear()) counts["month-total"]++; 
+                    }
+
+                    if(`${item.billNo} ${item.name} ${item.loc}`.toUpperCase().includes(globalSearchTerm)) {
+                        const filterMatch = (currentFilter === 'all' && !isFinished) || 
+                                           (currentFilter === 'not_delivered' && !isFinished) || 
+                                           (currentFilter === 'DELIVERED' && isFinished) || 
+                                           (currentFilter === 'NEW' && item.statusText === 'NEW') || 
+                                           (currentFilter === 'unapproved' && !item.approved && item.statusText === 'PENDING') || 
+                                           (currentFilter === 'PENDING' && item.statusText === 'PENDING' && item.approved) || 
+                                           (currentFilter === 'dc_pending' && item.approved && !isFinished) || 
+                                           (currentFilter === 'today' && itemDate.getTime() === today.getTime() && !isFinished) || 
+                                           (currentFilter === 'tomorrow' && itemDate.getTime() === tomorrowDate.getTime() && !isFinished) || 
+                                           (currentFilter === 'overdue' && itemDate.getTime() < today.getTime() && !isFinished);
+
+                        if(filterMatch) {
+                            const row = tbody.insertRow();
+                            const isFin = (currentUserRole === 'Admin' || currentUserRole === 'Sagar (Cashier)'), isShiva = (currentUserRole === 'Shiva (Service)'), isSuman = (currentUserRole === 'Suman (Supervisor)');
+                            let dateClass = (isFinished) ? 'date-finished' : (itemDate.getTime() === today.getTime() ? 'date-today' : (itemDate.getTime() === tomorrowDate.getTime() ? 'date-tomorrow' : (itemDate.getTime() < today.getTime() ? 'date-overdue' : 'date-upcoming')));
+                            
+                            // Approval Column
+                            let c0 = row.insertCell(); c0.style.display = isFin ? 'table-cell' : 'none';
+                            if(isFin) c0.innerHTML = item.statusText === 'PENDING' ? `<input type="checkbox" ${item.approved ? 'checked' : ''} onchange="recordsRef.child('${item.id}').update({approved: !${item.approved}})">` : '-';
+                            
+                            // Payment Column
+                            let c1 = row.insertCell(); c1.style.display = (isFin || isSuman) ? 'table-cell' : 'none';
+                            let payHtml = (item.payPending === 'NO') ? `<span class="pay-pill pay-no">NO</span>` : 
+                                (item.payReceived ? 
+                                    `<div style="text-align:center;">
+                                        <span class="pay-pill pay-done" onclick="${currentUserRole === 'Admin' ? `togglePay('${item.id}', true)` : ''}">PAID</span>
+                                        <div style="font-size:7px; color:var(--text-dim); margin-top:2px;">${item.payLog || ''}</div>
+                                    </div>` : 
+                                    `<span class="pay-pill pay-yes ${!item.payReceived ? 'blink-pay-col' : ''}" onclick="${(currentUserRole === 'Admin' || (currentUserRole === 'Sagar (Cashier)' && item.statusText === 'DELIVERED')) ? `togglePay('${item.id}', false)` : ''}">YES - ₹${item.payAmount}</span>`);
+                            c1.innerHTML = payHtml;
+
+                            // Content Columns
+                            row.innerHTML += `<td><b>${item.name}</b><br><a href="https://wa.me/91${item.phone}" target="_blank" style="color:var(--accent-blue); text-decoration:none; font-size:9px;">📱 ${item.phone || '---'}</a></td><td style="font-weight:700;">${item.billNo || '-'}</td><td>${item.qty || '0'}</td><td>${item.exec || '-'}</td><td>${item.loc || '-'}</td><td><input type="date" value="${item.date}" ${(currentUserRole === 'Sagar (Cashier)' || isShiva) ? 'disabled' : ''} onchange="recordsRef.child('${item.id}').update({date: this.value})" class="date-input ${dateClass}"></td><td style="text-align:center;"><span class="status-pill ${item.statusClass}" onclick="${(isShiva || currentUserRole === 'Sagar (Cashier)' || (isSuman && item.statusText !== 'NEW')) ? '' : `cycleStatus('${item.id}', '${item.statusText}')`}">${item.statusText}</span><div style="font-size:7px; color:var(--text-dim); margin-top:2px;">${item.statusLog || ''}</div></td><td>${(item.approved && item.statusText !== 'DELIVERED' && !isShiva && currentUserRole !== 'Sagar (Cashier)') ? `<button onclick="exportDC('${item.id}')" style="background:var(--accent-blue); color:white; border:none; padding:5px; border-radius:4px; font-size:9px; cursor:pointer;">EXPORT</button>` : '-'}</td>${currentUserRole === 'Admin' ? `<td onclick="if(confirm('Delete?')) recordsRef.child('${item.id}').remove()">🗑️</td>` : ''}`;
+                        }
+                    }
+                });
+                document.getElementById('sidebar-amt-pending').innerText = `₹${counts.amt}`;
+                document.getElementById('count-total').innerText = counts.total;
+                document.getElementById('count-not-delivered').innerText = counts.not_delivered;
+                document.getElementById('count-qc').innerText = counts.qc;
+                document.getElementById('count-unapproved').innerText = counts.unapproved;
+                document.getElementById('count-pending').innerText = counts.pending;
+                document.getElementById('count-delivered').innerText = counts.delivered;
+                document.getElementById('count-dc-pending').innerText = counts["dc-pending"];
+                document.getElementById('count-month-total').innerText = counts["month-total"];
+                document.getElementById('count-today-sidebar').innerText = counts.today;
+                document.getElementById('count-tomorrow-sidebar').innerText = counts.tomorrow;
+                document.getElementById('count-overdue-sidebar').innerText = counts.overdue;
+                document.getElementById('total-pending-box').classList.toggle('blink-urgent', counts.amt > 0);
+                document.getElementById('unapproved-nav').classList.toggle('blink-urgent', counts.unapproved > 0);
+                document.getElementById('qc-nav').classList.toggle('blink-urgent', counts.qc > 0);
+                document.getElementById('dc-pending-box').classList.toggle('blink-urgent', counts["dc-pending"] > 0);
+            });
+        }
+
+        function cycleStatus(id, cur) { 
+            const s = { 'NEW': { t: 'PENDING', c: 'status-pending', a: false }, 'PENDING': { t: 'DELIVERED', c: 'status-delivered', a: true }, 'DELIVERED': { t: 'NEW', c: 'status-new', a: false } }; 
+            const n = s[cur]; 
+            const log = getLogInfo();
+            const updateData = { statusText: n.t, statusClass: n.c, approved: n.a, statusLog: log };
+            if (n.t === 'DELIVERED') updateData.date = new Date().toISOString().split('T')[0];
+            recordsRef.child(id).update(updateData); 
+        }
+
+        function togglePay(id, cur) { 
+            if (!cur) {
+                recordsRef.child(id).update({ payReceived: true, payLog: getLogInfo() }); 
+            } else {
+                if(confirm('Reset payment?')) recordsRef.child(id).update({ payReceived: false, payLog: null });
+            }
+        }
+
+        function exportDC(id) { 
+            const item = globalData.find(i => i.id === id); 
+            const todayStr = new Date().toLocaleDateString('en-GB');
+            const todayIso = new Date().toISOString().split('T')[0];
+            const log = getLogInfo();
+            
+            const text = `URBAN CASA DISPATCH\n----------------------------------------\n📅Dispatch Date: ${todayStr}\n\n📅Bill Date: ${new Date(item.date).toLocaleDateString('en-GB')}\n\n🧾Bill No: ${item.billNo || '-'}\n\n👤Customer: ${item.name}\n\n👤Sales Executive: ${item.exec || '-'}\n\n📍Location: ${item.loc || '-'}\n\n📒Qty: ${item.qty || '0'}\n\n💰Payment Due: ₹${(item.payPending === "YES" && !item.payReceived) ? item.payAmount : 0}\n\n✅QC Checked By: ${currentUserRole.split(' ')[0].toUpperCase()}\n------------------------------------------\n🚚Status: Dispatched`; 
+            navigator.clipboard.writeText(text).then(() => { 
+                recordsRef.child(id).update({ statusText: 'DELIVERED', statusClass: 'status-delivered', approved: true, date: todayIso, statusLog: log }); 
+                alert("Format Copied & Marked Delivered!"); 
+            }); 
+        }
+        
+        function addNewDelivery() { 
+            const n = document.getElementById('custName').value, d = document.getElementById('delDate').value; 
+            if(!n || !d) return alert("Required: Name & Date"); 
+            recordsRef.push({ name: n.toUpperCase(), phone: document.getElementById('custPhone').value, billNo: document.getElementById('billNo').value, qty: document.getElementById('qty').value, exec: document.getElementById('execName').value.toUpperCase(), loc: document.getElementById('loc').value.toUpperCase(), date: d, statusText: 'NEW', statusClass: 'status-new', approved: false, payReceived: false, payPending: document.getElementById('payPending').value, payAmount: Number(document.getElementById('payAmount').value) || 0, statusLog: getLogInfo() }); 
+            ['custName','custPhone','billNo','qty','execName','loc','payAmount'].forEach(i => document.getElementById(i).value = ''); 
+        }
+
+        function setFilter(t, e) { currentFilter = t; document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('selected')); e.classList.add('selected'); loadData(); }
+        function backupData() { recordsRef.once('value', (snap) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(snap.val(), null, 2)], {type: 'application/json'})); a.download = `UrbanCasa_Backup_${new Date().toISOString().split('T')[0]}.json`; a.click(); }); }
+        function restoreData(event) { if (!confirm("Overwrite data?")) return; const reader = new FileReader(); reader.onload = (e) => recordsRef.set(JSON.parse(e.target.result), (err) => err ? alert("Err") : alert("OK")); reader.readAsText(event.target.files[0]); }
+        
+        function addNewComplaint() { 
+            const n = document.getElementById('compName').value, d = document.getElementById('compDate').value; 
+            if(!n || !d) return alert("Required: Name & Date"); 
+            complaintsRef.push({ name: n.toUpperCase(), phone: document.getElementById('compPhone').value, loc: document.getElementById('compLoc').value.toUpperCase(), details: document.getElementById('compDetails').value, date: d, statusText: 'NEW', statusClass: 'status-new', statusLog: getLogInfo() }); 
+            ['compName','compPhone','compLoc','compDetails'].forEach(i => document.getElementById(i).value = ''); 
+        }
+
+        function cycleComplaintStatus(id, cur) {
+            const s = { 'NEW': { t: 'IN PROGRESS', c: 'status-pending' }, 'IN PROGRESS': { t: 'RESOLVED', c: 'status-delivered' }, 'RESOLVED': { t: 'NEW', c: 'status-new' } };
+            const n = s[cur];
+            complaintsRef.child(id).update({ statusText: n.t, statusClass: n.c, statusLog: getLogInfo() });
+        }
+
+        function loadComplaints() { 
+            const search = document.getElementById('compSearch').value.toUpperCase(); 
+            complaintsRef.on('value', (snap) => { 
+                const data = snap.val() || {}, tbody = document.querySelector('#complaintsTable tbody'); tbody.innerHTML = ''; 
+                let activeCount = 0;
+                Object.keys(data).reverse().forEach(id => {
+                    const item = data[id];
+                    if (item.statusText !== 'RESOLVED') activeCount++;
+                    if (`${item.name} ${item.phone} ${item.loc}`.toUpperCase().includes(search)) {
+                        const row = tbody.insertRow();
+                        row.innerHTML = `<td>${item.date}</td><td><b>${item.name}</b><br><span style="color:var(--accent-blue)">📱 ${item.phone || '-'}</span></td><td>${item.loc}</td><td>${item.details}</td><td><span class="status-pill ${item.statusClass}" onclick="cycleComplaintStatus('${id}', '${item.statusText}')">${item.statusText}</span><div style="font-size:7px; color:var(--text-dim); margin-top:2px;">${item.statusLog || ''}</div></td><td onclick="${currentUserRole === 'Admin' ? `if(confirm('Delete?')) complaintsRef.child('${id}').remove()` : ''}">${currentUserRole === 'Admin' ? '🗑️' : ''}</td>`;
+                    }
+                });
+                document.getElementById('count-complaints').innerText = activeCount;
+                document.getElementById('complaints-nav').classList.toggle('blink-urgent', activeCount > 0);
+            });
+        }
+    </script>
+</body>
+</html>
