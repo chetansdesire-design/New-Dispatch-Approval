@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Urban Casa | Dispatch & Service v16.70</title>
+    <title>Urban Casa | Dispatch & Service v16.80</title>
     
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -54,7 +54,7 @@
         .sidebar { width: 195px; background-color: var(--sidebar-bg); padding: 20px 15px; display: flex; flex-direction: column; color: white; flex-shrink: 0; }
         .nav-item { padding: 10px 12px; border-radius: 8px; margin-bottom: 4px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #cbd5e1; font-weight: 600; transition: background 0.2s; }
         .nav-item:hover { background: rgba(255,255,255,0.05); }
-        .nav-item.selected { background: var(--accent-blue); color: white; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2); }
+        .nav-item.selected { background: var(--accent-blue); color: white; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2); border-color: transparent !important; }
         .count { background: rgba(0,0,0,0.2); padding: 2px 7px; border-radius: 10px; font-size: 9px; font-weight: 800; }
         
         @keyframes urgent-blink { 0%, 100% { background: rgba(239, 68, 68, 0.2); color: #f87171; } 50% { background: #dc2626; color: white; } }
@@ -118,7 +118,7 @@
         <div class="login-box" style="width: 280px;">
             <h2 style="color:var(--accent-blue); margin-bottom:2px; font-weight:900;">URBAN CASA</h2>
             <div style="font-size:8px; color:var(--text-dim); margin-bottom:15px; font-weight:800; letter-spacing:0.5px;">TIMELESS FURNITURE FOR MODERN LIVING</div>
-            <p style="font-size:9px; color:var(--text-dim); margin-bottom:20px; font-weight:700;">VER 16.70 - PRODUCTION READY</p>
+            <p style="font-size:9px; color:var(--text-dim); margin-bottom:20px; font-weight:700;">VER 16.80 - PRODUCTION READY</p>
             <input type="password" id="passField" class="pass-input" placeholder="••••••••">
             <button class="user-btn" style="background:var(--accent-blue);" onclick="login('Admin')">ADMIN</button>
             <button class="user-btn" style="background:#7c3aed;" onclick="login('Sagar (Cashier)')">SAGAR (CASHIER)</button>
@@ -151,6 +151,7 @@
 
                 <select id="exportFilterSelect" class="pass-input" style="font-size: 11px; margin-bottom: 10px; text-align: left; padding: 8px; letter-spacing: 0px;">
                     <option value="DELIVERED">✅ Delivered (Gate Verify)</option>
+                    <option value="month_delivered">📅 This Month Delivered</option>
                     <option value="not_delivered">⏳ All Open / Pending</option>
                     <option value="today">📅 Today's Dispatch</option>
                     <option value="tomorrow">🔜 Tomorrow's Dispatch</option>
@@ -238,23 +239,27 @@
             <input type="text" id="sidebar-search" placeholder="🔍 Global Search..." onkeyup="globalSearchTerm = this.value.toUpperCase(); loadData();" style="width: 100%; padding: 8px; border-radius: 6px; border: none; background: rgba(255,255,255,0.1); color: white; font-size: 10px; outline: none; box-sizing: border-box; font-weight:600;">
         </div>
 
-        <!-- COMPACT ANALYTICS ROW -->
+        <!-- COMPACT ANALYTICS CLICKABLE BUTTON ROW -->
         <div style="display: flex; gap: 4px; margin-bottom: 10px;">
-            <div class="nav-item selected" onclick="setFilter('all', this)" style="flex:1; padding: 6px 2px; justify-content: center; flex-direction:column; gap: 4px; font-size: 8px; margin-bottom:0;">
+            <div class="nav-item selected" onclick="setFilter('all', this)" style="flex:1; padding: 8px 2px; justify-content: center; flex-direction:column; gap: 4px; font-size: 8px; margin-bottom:0; text-align:center; border: 1px solid rgba(255,255,255,0.1);">
                 ACTIVE <span class="count" id="count-total">0</span>
             </div>
-            <div id="qc-nav" class="nav-item" onclick="setFilter('NEW', this)" style="flex:1; padding: 6px 2px; justify-content: center; flex-direction:column; gap: 4px; font-size: 8px; margin-bottom:0; border: 1px solid rgba(255,255,255,0.1);">
+            <div id="qc-nav" class="nav-item" onclick="setFilter('NEW', this)" style="flex:1; padding: 8px 2px; justify-content: center; flex-direction:column; gap: 4px; font-size: 8px; margin-bottom:0; text-align:center; border: 1px solid rgba(255,255,255,0.1);">
                 QC <span class="count" id="count-qc">0</span>
             </div>
-            <div class="nav-item" style="flex:1; padding: 6px 2px; justify-content: center; flex-direction:column; gap: 4px; font-size: 8px; margin-bottom:0; border: 1px solid rgba(255,255,255,0.1); cursor:default;">
-                <span style="color:#10b981;">MONTH</span> <span class="count" id="count-month-total" style="background:rgba(16, 185, 129, 0.2); color:#10b981;">0</span>
+            <div id="pending-nav" class="nav-item" onclick="setFilter('PENDING', this)" style="flex:1; padding: 8px 2px; justify-content: center; flex-direction:column; gap: 4px; font-size: 8px; margin-bottom:0; text-align:center; border: 1px solid rgba(255,255,255,0.1);">
+                READY <span class="count" id="count-pending">0</span>
             </div>
         </div>
 
         <div id="complaints-nav" class="nav-item" onclick="toggleComplaintsPanel()" style="display:none;">Complaints <span class="count" id="count-complaints">0</span></div>
         <div id="unapproved-nav" class="nav-item" onclick="setFilter('unapproved', this)">UnApproved <span class="count" id="count-unapproved">0</span></div>
-        <div id="pending-nav" class="nav-item" onclick="setFilter('PENDING', this)">Ready To Dispatch <span class="count" id="count-pending">0</span></div>
         <div id="delivered-nav" class="nav-item" onclick="setFilter('DELIVERED', this)">Delivered <span class="count" id="count-delivered">0</span></div>
+        
+        <!-- CLICKABLE MONTH DELIVERED TRACKER (Moved Below Delivered, Standard Styling) -->
+        <div id="month-delivered-nav" class="nav-item" onclick="setFilter('month_delivered', this)" style="margin-top: -2px;">
+             Month Delivered <span class="count" id="count-month-total">0</span>
+        </div>
         
         <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 10px 0;"></div>
 
@@ -379,6 +384,9 @@
             const isFin = (role === 'Admin' || role === 'Sagar (Cashier)'), isShiva = (role === 'Shiva (Service)'), isSuman = (role === 'Suman (Supervisor)');
             document.getElementById('complaints-nav').style.display = (role === 'Admin' || role === 'Sagar (Cashier)' || isShiva) ? 'flex' : 'none';
             document.getElementById('qc-nav').style.display = (role === 'Sagar (Cashier)') ? 'none' : 'flex';
+            
+            document.getElementById('pending-nav').style.display = 'flex'; 
+
             document.getElementById('entry-bar').style.display = (isSuman || isShiva) ? 'none' : 'flex';
             document.getElementById('approve-head').style.display = isFin ? 'table-cell' : 'none';
             document.getElementById('pay-head').style.display = (isFin || isSuman) ? 'table-cell' : 'none';
@@ -441,6 +449,7 @@
             } else {
                 const titles = {
                     'DELIVERED': 'GATE REGISTER VERIFICATION REPORT (DELIVERED)',
+                    'month_delivered': 'THIS MONTH DELIVERED REPORT',
                     'not_delivered': 'ALL OPEN & PENDING DISPATCH REPORT',
                     'today': "TODAY'S DISPATCH REPORT",
                     'tomorrow': "TOMORROW'S DISPATCH REPORT",
@@ -461,6 +470,7 @@
                     const isFinished = (item.statusText === 'DELIVERED');
                     
                     if (targetFilter === 'DELIVERED') return isFinished;
+                    if (targetFilter === 'month_delivered') return isFinished && itemDate.getMonth() === today.getMonth() && itemDate.getFullYear() === today.getFullYear();
                     if (targetFilter === 'not_delivered') return !isFinished;
                     if (targetFilter === 'today') return itemDate.getTime() === today.getTime() && !isFinished;
                     if (targetFilter === 'tomorrow') return itemDate.getTime() === (new Date(today).setDate(today.getDate()+1)) && !isFinished;
@@ -469,7 +479,7 @@
                     return false;
                 });
 
-                if (targetFilter === 'DELIVERED') {
+                if (targetFilter === 'DELIVERED' || targetFilter === 'month_delivered') {
                     exportData.sort((a, b) => {
                         const getBal = (i) => {
                             let bal = Number(i.payAmount || 0);
@@ -591,9 +601,10 @@
         function loadData() {
             recordsRef.on('value', (snapshot) => {
                 const rawData = snapshot.val() || {};
-                globalData = Object.keys(rawData).map(key => ({ ...rawData[key], id: key })).reverse();
+                globalData = Object.keys(rawData).map(key => ({ ...rawData[key], id: key }));
                 
-                if (currentFilter === 'DELIVERED') {
+                if (currentFilter === 'DELIVERED' || currentFilter === 'month_delivered') {
+                    // Sorting logic for completed orders
                     globalData.sort((a, b) => {
                         const getBalance = (item) => {
                             let bal = Number(item.payAmount || 0);
@@ -610,6 +621,16 @@
                             return bPending - aPending;
                         }
                         return new Date(b.date) - new Date(a.date);
+                    });
+                } else {
+                    // General Sorting: Date-wise strictly on top (Descending order)
+                    globalData.sort((a, b) => {
+                        let dateA = new Date(a.date).getTime();
+                        let dateB = new Date(b.date).getTime();
+                        if (dateA === dateB) {
+                            return b.id > a.id ? 1 : -1; // If dates are identical, keep newest pushID on top
+                        }
+                        return dateB - dateA;
                     });
                 }
 
@@ -652,6 +673,7 @@
                         (currentFilter === 'all' && !isFinished) || 
                         (currentFilter === 'not_delivered' && !isFinished) || 
                         (currentFilter === 'DELIVERED' && isFinished) || 
+                        (currentFilter === 'month_delivered' && isFinished && itemDate.getMonth() === today.getMonth() && itemDate.getFullYear() === today.getFullYear()) ||
                         (currentFilter === 'NEW' && item.statusText === 'NEW') || 
                         (currentFilter === 'unapproved' && !item.approved && item.statusText === 'PENDING') || 
                         (currentFilter === 'PENDING' && item.statusText === 'PENDING' && item.approved) || 
